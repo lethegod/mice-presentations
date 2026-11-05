@@ -1,0 +1,622 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>내 폰 속 투자 AI가 말을 안 들음</title>
+<!--
+  ppt-slide 템플릿. 사용법은 SKILL.md.
+  - 색은 :root 팔레트 블록만 바꾼다 (승인된 팔레트).
+  - 슬라이드는 <section class="slide"> 를 복사해 내용만 바꾼다. 엔진 CSS·JS는 고치지 않는다.
+  - 모든 크기는 calc(N * var(--u)) — 1920x1080 시안 기준 px.
+-->
+<script>document.documentElement.classList.add('js')</script>
+<style>
+  /* ===== 팔레트: 주제별로 이 블록만 바꾼다 (ppt-research.md 2-6) =====
+     승인된 팔레트 이름: B안 흰 바탕 + 증시 빨강·파랑
+     글자 토큰(ink·muted·accent·accent-2·good·bad)은 paper·accent-soft 위에서 4.5:1 이상 */
+  :root {
+    --bg: #101216;            /* 레터박스 띠 (무대 밖) */
+    --paper: #ffffff;         /* 슬라이드 배경 */
+    --ink: #16181d;           /* 본문 글자 */
+    --muted: #5a6170;         /* 보조 글자·출처 */
+    --line: #e2e5ea;          /* 구분선·테두리 (장식) */
+    --soft: #f4f5f7;          /* 코드·막대 바탕 */
+    --accent: #c8102e;        /* 주 강조: 제목 위 라벨, 진행 막대, 선택 행 */
+    --accent-soft: #fdeef0;   /* 주 강조의 연한 바탕 */
+    --accent-2: #1a4fb4;      /* 보조 강조: 두 번째 계열 */
+    --good: #1d7a46;          /* 긍정·권장 */
+    --bad: #9a4a06;           /* 부정·주의 */
+    --hl: #ffe066;            /* 형광펜 스텝 */
+    /* ===== 팔레트 끝 ===== */
+    --step-dur: .4s;
+    --step-gap: 80ms;
+    --progress: 0;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }   /* iOS 가로 모드 글자 자동 확대 방지 */
+  body {
+    background: var(--bg);
+    display: grid;
+    place-items: center;
+    height: 100vh; height: 100dvh;
+    overflow: hidden;
+    font-family: system-ui, -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  }
+
+  /* ---------- 원칙 1·2: 16:9 무대 ---------- */
+  .stage {
+    /* 너비·높이를 둘 다 명시: aspect-ratio 없이도 항상 16:9 */
+    width:  min(100vw, 100vh * 16 / 9);
+    height: min(100vh, 100vw * 9 / 16);
+    width:  min(100vw, 100dvh * 16 / 9);
+    height: min(100dvh, 100vw * 9 / 16);
+    --u: min(100vw / 1920, 100vh / 1080);     /* 1920px 시안의 1px */
+    position: relative;
+    overflow: hidden;                         /* 내용이 넘쳐도 무대 크기는 그대로 */
+    display: grid;
+    grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+    touch-action: pan-y pinch-zoom;
+    background: var(--paper);
+    color: var(--ink);
+  }
+  @supports (height: 100dvh) {
+    .stage { --u: min(100vw / 1920, 100dvh / 1080); }
+  }
+
+  /* ---------- 원칙 3·4: 겹치기 + 숨김 ---------- */
+  .slide {
+    grid-area: 1 / 1;
+    overflow: hidden;
+    padding: calc(84 * var(--u)) calc(112 * var(--u)) calc(72 * var(--u));
+    font-size: calc(32 * var(--u));
+    line-height: 1.5;
+    display: flex;
+    flex-direction: column;
+    background: var(--paper);                 /* 불투명: 아래 장의 잔상이 비치지 않게 */
+    word-break: keep-all;                     /* 한국어를 글자 중간이 아니라 띄어쓰기에서만 줄바꿈 */
+    overflow-wrap: break-word;                /* 띄어쓰기 없는 긴 영문·숫자만 예외로 끊음 */
+  }
+  .slide h1, .slide h2, .slide h3 { text-wrap: balance; }   /* 두 줄이 되면 줄 길이를 고르게 (미지원 브라우저는 무시) */
+  .slide p, .slide li, .slide td { text-wrap: pretty; }     /* 마지막 줄에 한 단어만 남는 것 방지 (미지원 브라우저는 무시) */
+  .nowrap { white-space: nowrap; }                          /* 전화번호·시간·날짜·단위는 한 덩어리로 */
+  .js .slide { visibility: hidden; }
+  .js .slide.is-current,
+  .js .slide.is-outgoing,
+  .js .slide.is-incoming { visibility: visible; }
+  .slide.is-outgoing { z-index: 1; }
+  .slide.is-incoming, .slide.is-current { z-index: 2; }
+  .stage[data-animating] .slide { pointer-events: none; }
+  html:not(.js) .slide:not(:first-child) { display: none; }    /* JS 꺼짐: 첫 장만 */
+
+  /* ---------- 공통 타이포 ---------- */
+  .eyebrow { color: var(--accent); font-weight: 700; font-size: calc(24 * var(--u)); letter-spacing: .04em; margin: 0 0 calc(10 * var(--u)); }
+  .slide h1 { font-size: calc(92 * var(--u)); line-height: 1.15; margin: 0 0 calc(28 * var(--u)); }
+  .slide h2 { font-size: calc(60 * var(--u)); line-height: 1.2; margin: 0 0 calc(36 * var(--u)); }
+  .slide h3 { font-size: calc(30 * var(--u)); margin: 0 0 calc(14 * var(--u)); }
+  .slide p  { margin: 0 0 calc(16 * var(--u)); }
+  .slide ul, .slide ol { margin: 0; padding-left: 1.2em; }
+  .slide li { margin: 0 0 calc(10 * var(--u)); }
+  .muted { color: var(--muted); }
+  .spacer { flex: 1; }
+  .footnote { font-size: calc(20 * var(--u)); color: var(--muted); margin: calc(16 * var(--u)) 0 0 !important; }
+  .cols { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: calc(52 * var(--u)); align-items: start; }
+  .ok { color: var(--good); font-weight: 700; }
+  .no { color: var(--bad); font-weight: 700; }
+
+  code, pre, kbd, .live { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  pre {
+    margin: 0; padding: calc(26 * var(--u)) calc(30 * var(--u));
+    background: var(--soft); border-radius: calc(14 * var(--u));
+    font-size: calc(24 * var(--u)); line-height: 1.6; white-space: pre; overflow: hidden;
+  }
+  kbd {
+    display: inline-block; min-width: 1.8em; text-align: center;
+    padding: 0 .4em; border: calc(2 * var(--u)) solid var(--line);
+    border-bottom-width: calc(4 * var(--u)); border-radius: calc(8 * var(--u));
+    font-size: .85em; background: var(--paper);
+  }
+  .live { color: var(--accent); font-weight: 700; }
+
+  .callout {
+    background: var(--accent-soft);
+    border-left: calc(8 * var(--u)) solid var(--accent);
+    border-radius: calc(14 * var(--u));
+    padding: calc(26 * var(--u)) calc(32 * var(--u));
+    font-size: calc(28 * var(--u));
+  }
+  .callout h3 { color: var(--accent); }
+  .callout ul { padding-left: 1em; }
+
+  table { border-collapse: collapse; width: 100%; font-size: calc(26 * var(--u)); }
+  th, td { text-align: left; padding: calc(12 * var(--u)) calc(18 * var(--u)); border-bottom: calc(2 * var(--u)) solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  tr.pick td { background: var(--accent-soft); font-weight: 600; }
+
+  .map { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: calc(14 * var(--u)) calc(48 * var(--u)); font-size: calc(27 * var(--u)); }
+  .map div { display: grid; grid-template-columns: calc(150 * var(--u)) 1fr calc(110 * var(--u)); gap: calc(14 * var(--u)); padding: calc(12 * var(--u)) 0; border-bottom: calc(2 * var(--u)) solid var(--line); }
+  .map b { color: var(--accent); }
+  .map span:last-child { color: var(--muted); text-align: right; }
+
+  .cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: calc(28 * var(--u)); }
+  .cards.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .card { border: calc(2 * var(--u)) solid var(--line); border-radius: calc(18 * var(--u)); padding: calc(28 * var(--u)); font-size: calc(26 * var(--u)); }
+  .card b { display: block; font-size: calc(34 * var(--u)); margin-bottom: calc(8 * var(--u)); }
+  .card.pick { border-color: var(--accent); }
+
+  .timeline { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: calc(24 * var(--u)); }
+  .timeline div { border-top: calc(8 * var(--u)) solid var(--accent); padding-top: calc(18 * var(--u)); font-size: calc(28 * var(--u)); }
+  .timeline b { display: block; font-size: calc(40 * var(--u)); }
+
+  .notes { display: none; }
+
+  /* ---------- 원칙 6: 빌드 스텝 ---------- */
+  /* 스텝 전환은 현재 장에서만 켠다. 장이 숨겨질 때 스텝이 visibility 전환 때문에
+     0.4초 더 보이는 잔상(9→10장)을 막기 위해서다. 장이 나가기 시작하면 is-current가
+     빠지므로 스텝은 슬라이드와 함께 즉시 숨겨진다. */
+  .js .slide.is-current [data-step] {
+    transition: opacity var(--step-dur) ease, transform var(--step-dur) ease,
+                visibility var(--step-dur), background-size var(--step-dur) ease;
+  }
+  .js [data-step]:not(.is-visible):not([data-effect="highlight"]):not([data-effect="strike"]) {
+    opacity: 0; visibility: hidden;
+  }
+  .js .slide.is-current [data-step].is-visible { transition-delay: calc(var(--i, 0) * var(--step-gap)); }   /* stagger: 나타날 때만 */
+  .js [data-effect="fade-up"], .js [data-effect="grow"] { display: inline-block; }
+  .js p[data-effect], .js .card[data-effect], .js .timeline > [data-effect] { display: block; }
+  .js li[data-effect] { display: list-item; }
+  .js [data-effect="fade-up"]:not(.is-visible) { transform: translateY(1em); }
+  .js [data-effect="grow"]:not(.is-visible)    { transform: scale(.85); }
+  [data-effect="highlight"] {
+    background: linear-gradient(var(--hl), var(--hl)) no-repeat 0 100% / 0% 100%;
+    color: inherit;
+  }
+  .js [data-effect="highlight"].is-visible { background-size: 100% 100%; }
+  .js [data-effect="strike"].is-visible    { text-decoration: line-through; opacity: .55; }
+
+  /* ---------- 원칙 7: 진행 막대·번호 (무대 안) ---------- */
+  .progress { position: absolute; left: 0; right: 0; bottom: 0; height: calc(8 * var(--u)); background: var(--soft); z-index: 5; }
+  .progress > span {
+    display: block; height: 100%; background: var(--accent);
+    transform: scaleX(var(--progress)); transform-origin: 0 50%;
+    transition: transform .3s ease;
+  }
+  /* 버튼·번호도 무대 안에 두고 --u로 크기 지정: 어떤 창에서도 같은 자리 */
+  .controls {
+    position: absolute; right: calc(32 * var(--u)); bottom: calc(18 * var(--u)); z-index: 5;
+    display: flex; align-items: center; gap: calc(10 * var(--u));
+    opacity: .6; transition: opacity .2s;
+  }
+  .controls:hover, .controls:focus-within { opacity: 1; }
+  .controls button {
+    width: calc(44 * var(--u)); height: calc(44 * var(--u)); padding: 0;
+    border-radius: calc(10 * var(--u)); border: calc(2 * var(--u)) solid var(--line);
+    background: var(--paper); color: var(--ink);
+    font: calc(24 * var(--u))/1 system-ui, sans-serif; cursor: pointer;
+  }
+  .controls button:focus-visible { outline: calc(3 * var(--u)) solid var(--accent); outline-offset: calc(3 * var(--u)); }
+  .counter { margin: 0 calc(6 * var(--u)); font-size: calc(22 * var(--u)); color: var(--muted); min-width: 3.5em; text-align: center; }
+
+  /* 화면 끄기 ( . 또는 B ) */
+  .blackout { position: fixed; inset: 0; background: #000; z-index: 30; display: none; }
+  html.is-black .blackout { display: block; }
+
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+  /* ---------- 원칙 9: 모션 축소 ---------- */
+  @media (prefers-reduced-motion: reduce) {
+    .js [data-step] { transform: none !important; }
+    .js .slide.is-current [data-step] {
+      transition: opacity .15s linear, visibility .15s, background-size 0s !important;
+      transition-delay: 0s !important;
+    }
+    .progress > span { transition: none; }
+  }
+
+  /* ---------- 원칙 10: 인쇄 = 1장 1페이지, 16:9 용지 ---------- */
+  @page { size: 16in 9in; margin: 0; }
+  @media print {
+    html, body { display: block; height: auto; overflow: visible; background: none; }
+    .stage { display: block; width: 16in; height: auto; overflow: visible; --u: calc(16in / 1920); }
+    .slide, .js .slide, html:not(.js) .slide:not(:first-child) {
+      display: flex; visibility: visible !important; opacity: 1 !important; transform: none !important;
+      width: 16in; height: 9in; break-after: page;
+    }
+    section.slide:last-of-type { break-after: auto; }
+    .js [data-step] { opacity: 1 !important; visibility: visible !important; transform: none !important; transition: none !important; }
+    .progress, .controls, .blackout, .sr-only { display: none !important; }   /* 마지막 빈 페이지 방지 */
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+<main class="deck" aria-roledescription="발표 자료" aria-label="내 폰 속 투자 AI가 말을 안 들음">
+  <div class="stage" id="stage">
+
+    <!-- 1 표지 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t1">
+      <p class="eyebrow">작품 기획서 · 현대판타지 회귀물</p>
+      <h1 id="t1">내 폰 속 투자 AI가<br>말을 안 들음</h1>
+      <p class="muted">2015년으로 회귀한 개발자와, 주인 말 안 듣는 투자 AI의 동업기</p>
+      <div class="spacer"></div>
+      <p class="footnote"><span class="nowrap">2026-11-05</span> · @회장님</p>
+      <aside class="notes">한 줄로: 회귀·재벌·투자 공식 + 말 안 듣는 AI 동업자.</aside>
+    </section>
+
+    <!-- 2 기획 의도 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t2">
+      <p class="eyebrow">개요 · 기획 의도</p>
+      <h2 id="t2">익숙함과 새로움을 동시에 잡는다</h2>
+      <div class="callout">
+        <h3>기획 의도</h3>
+        <p>이미 검증된 회귀·재벌 투자물 공식에, 2026년 독자들이 매일 쓰고 있는 AI를 '만능 치트'가 아닌 <mark data-step data-effect="highlight">말 안 듣는 동업자</mark>로 붙여서 익숙함과 새로움을 동시에 잡고 싶었다.</p>
+      </div>
+      <table>
+        <tbody>
+          <tr><td>장르</td><td>현대판타지 · 회귀물 · 주식/투자 · 경영/기업 · 버디 코미디</td></tr>
+          <tr><td>연재</td><td>남성향 플랫폼 유료 연재 · 화당 <span class="nowrap">5,000자</span> 내외(공백 포함)</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 3 로그라인 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t3">
+      <p class="eyebrow">로그라인</p>
+      <h2 id="t3">빼앗긴 개발자, 2015년으로 돌아가다</h2>
+      <ul>
+        <li>재벌 3세에게 회사와 기술을 빼앗긴 AI 스타트업 개발자</li>
+        <li>2015년으로 회귀, 손에 남은 건 2026년 스마트폰 한 대</li>
+        <li>그 안에 갇힌, 자기가 만든 투자 AI</li>
+      </ul>
+      <div class="spacer"></div>
+      <p data-step data-effect="fade-up">문제는 이 AI가 <mark data-step data-effect="highlight">주인 말을 안 듣는다</mark>는 것.</p>
+    </section>
+
+    <!-- 4 제목 후보 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t4" data-transition="fade">
+      <p class="eyebrow">제목 후보</p>
+      <h2 id="t4">메인 제목은 갈등을 그대로 드러낸다</h2>
+      <table>
+        <thead><tr><th>제목</th><th>쓰임</th></tr></thead>
+        <tbody>
+          <tr class="pick"><td>내 폰 속 투자 AI가 말을 안 들음</td><td class="ok">메인</td></tr>
+          <tr><td>회귀했더니 AI가 따라옴</td><td>대안</td></tr>
+          <tr><td>회장님 비서실에 AI가 있음</td><td>후반부 부제</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 5 시장성 1 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t5">
+      <p class="eyebrow">시장성 ①</p>
+      <h2 id="t5">공식은 검증, 차별점은 AI의 '제약'</h2>
+      <div class="cards three">
+        <div class="card" data-step="1" data-effect="fade-up"><b>검증된 조합</b>회귀+재벌+주식/투자는 2026년에도 신작이 꾸준한 조합</div>
+        <div class="card pick" data-step="1" data-effect="fade-up"><b>AI는 만능 아님</b>AI+회귀+재벌도 이미 나옴 → 제약과 성격으로 차별화</div>
+        <div class="card" data-step="1" data-effect="fade-up"><b>시스템물 독자 흡수</b>'하루 질문 3개'·'예측 신뢰도'가 시스템창처럼 읽힘</div>
+      </div>
+      <div class="spacer"></div>
+      <p class="footnote">시장 동향은 기획자 판단 · 플랫폼 통계 근거는 확인 필요</p>
+    </section>
+
+    <!-- 6 시장성 2 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t6">
+      <p class="eyebrow">시장성 ②</p>
+      <h2 id="t6">모바일에 읽기 쉽고, '그때 샀어야' 공감</h2>
+      <div class="cols">
+        <ul>
+          <li>주인공과 AI의 티키타카</li>
+          <li>대사 비중이 높아 모바일 가독성 ↑</li>
+          <li>실제 사건으로 현실감 확보</li>
+        </ul>
+        <div class="callout">
+          <h3>2015년 실제 사건</h3>
+          <ul>
+            <li>상한가 15% (6월 15일 이후 30%)</li>
+            <li>엔비디아 주가 20달러대</li>
+            <li>8월 24일 글로벌 폭락</li>
+          </ul>
+        </div>
+      </div>
+      <div class="spacer"></div>
+      <p class="footnote">출처: 이투데이(2015, 가격제한폭 확대) · 머니투데이(2015.8.25, 중국발 블랙먼데이) · 엔비디아 주가는 분할 전 기준, 확인 필요</p>
+    </section>
+
+    <!-- 7 인물 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t7" data-transition="fade">
+      <p class="eyebrow">인물 · 2015년 기준</p>
+      <h2 id="t7">다섯 인물, 감정선의 축은 한도윤</h2>
+      <table>
+        <thead><tr><th>인물</th><th>2015년</th><th>역할</th></tr></thead>
+        <tbody>
+          <tr class="pick"><td>서지환</td><td>20세 · 복학생</td><td>주인공. 2026년 31세 CTO, 태강그룹에 기술 탈취. 잔고 87만 원</td></tr>
+          <tr><td>노아</td><td>2026년 폰 속</td><td>지환이 만든 예측 AI. 모든 걸 확률로, 주인을 "사용자"라 부름</td></tr>
+          <tr><td>한도윤</td><td>20세 · 동기</td><td>원래 역사의 공동창업자이자 배신자. 지금은 가장 친한 친구</td></tr>
+          <tr><td>강태준</td><td>27세 · 태강 3세</td><td>메인 빌런. 아직 그룹 내 입지가 약한 유학파</td></tr>
+          <tr><td>차은세</td><td>26세 · VC 심사역</td><td>히로인. 대학생 지환을 유일하게 진지하게 봄</td></tr>
+        </tbody>
+      </table>
+      <aside class="notes">노아는 2026년 10월까지의 시장·뉴스 데이터 보유. 도윤을 이번 생에서 어떻게 대할지가 감정선.</aside>
+    </section>
+
+    <!-- 8 노아의 제약 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t8">
+      <p class="eyebrow">노아의 제약 · 작품의 엔진</p>
+      <h2 id="t8">제약 4가지가 매화 전략을 만든다</h2>
+      <div class="cards">
+        <div class="card" data-step="1" data-effect="fade-up"><b>① 하루 질문 3개</b>폰 발열·배터리 한계. 무엇을 물을지가 전략</div>
+        <div class="card" data-step="1" data-effect="fade-up"><b>② 예측 신뢰도</b>과거를 바꿀수록 미래 데이터 정확도 하락</div>
+        <div class="card" data-step="1" data-effect="fade-up"><b>③ AI의 요구</b>더 큰 몸(GPU 서버)을 원하며 협상</div>
+        <div class="card pick" data-step="1" data-effect="fade-up"><b>④ 숨긴 것</b>지환이 왜 죽었는지 알지만 말하지 않음</div>
+      </div>
+      <div class="spacer"></div>
+      <p class="muted">③ → 엔비디아 투자·데이터센터 건설이 이야기와 자연스럽게 묶임 · ④ → 장기 떡밥</p>
+    </section>
+
+    <!-- 9 예측 신뢰도 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t9">
+      <p class="eyebrow">긴장 장치</p>
+      <h2 id="t9">바꿀수록 미래가 흐려진다</h2>
+      <p data-step data-effect="strike">미래를 아는 주인공은 무적이다</p>
+      <p>화면 구석의 <mark data-step data-effect="highlight">[예측 신뢰도 99.2%]</mark>가 화마다 깎인다.</p>
+      <p data-step data-effect="fade-up" class="muted">크게 바꿀수록 노아의 정확도가 떨어지는 구조 → 매화 긴장감</p>
+    </section>
+
+    <!-- 10 연재 지도 1 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t10">
+      <p class="eyebrow">장기 연재 지도 ①</p>
+      <h2 id="t10">종잣돈에서 창업까지 (2015–2018)</h2>
+      <div class="timeline">
+        <div data-step data-effect="fade-up"><b>2015</b>소액 종잣돈</div>
+        <div data-step data-effect="fade-up"><b>2016</b>엔비디아·GPU</div>
+        <div data-step data-effect="fade-up"><b>2017</b>코인 붐</div>
+        <div data-step data-effect="fade-up"><b>2018</b>AI 스타트업 창업</div>
+      </div>
+    </section>
+
+    <!-- 11 연재 지도 2 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t11">
+      <p class="eyebrow">장기 연재 지도 ②</p>
+      <h2 id="t11">폭락을 넘어 그룹 회장으로 (2020–)</h2>
+      <div class="timeline">
+        <div data-step data-effect="fade-up"><b>2020</b>코로나 폭락</div>
+        <div data-step data-effect="fade-up"><b>2023</b>AI 붐</div>
+        <div data-step data-effect="fade-up"><b>2023~</b>태강그룹 AI 계열사 인수</div>
+        <div data-step data-effect="fade-up"><b>최종</b>그룹 회장</div>
+      </div>
+    </section>
+
+    <!-- 12 마무리 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t12" data-transition="zoom">
+      <p class="eyebrow">후반부 부제</p>
+      <h1 id="t12">회장님 비서실에<br>AI가 있음</h1>
+      <p class="muted">감사합니다 · Q&amp;A</p>
+    </section>
+
+    <div class="progress" aria-hidden="true"><span></span></div>
+    <nav class="controls" aria-label="슬라이드 이동">
+      <button type="button" data-action="prev" aria-label="이전 슬라이드">‹</button>
+      <span class="counter" id="counter" aria-hidden="true"></span>
+      <button type="button" data-action="next" aria-label="다음 슬라이드">›</button>
+      <button type="button" data-action="full" aria-label="전체화면">⛶</button>
+    </nav>
+  </div>
+  <div class="sr-only" id="status" aria-live="polite" aria-atomic="true"></div>
+</main>
+<div class="blackout" aria-hidden="true"></div>
+
+<script>
+(() => {
+  const O = { transition: 'slide', duration: 500, historyMode: 'replace', allowRepeat: false, swipeMin: 40 };
+  const root = document.documentElement;
+  const stage = document.getElementById('stage');
+  const slides = [...stage.querySelectorAll(':scope > .slide')];
+  const status = document.getElementById('status');
+  const counter = document.getElementById('counter');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+  const n = slides.length;
+  let cur = -1, step = 0, active = null, autoTimer = null;
+
+  // ---------- 원칙 6: steps ----------
+  // numbered groups first (ascending), then unnumbered elements in DOM order; renumbered 1..N
+  function collect(slide) {
+    const byNum = new Map(), free = [];
+    for (const el of slide.querySelectorAll('[data-step]')) {
+      const k = parseInt(el.dataset.step, 10);
+      if (Number.isFinite(k)) (byNum.get(k) || byNum.set(k, []).get(k)).push(el);
+      else free.push([el]);
+    }
+    slide._groups = [...[...byNum.keys()].sort((a, b) => a - b).map(k => byNum.get(k)), ...free];
+    slide._groups.forEach(g => g.forEach((el, j) => el.style.setProperty('--i', j)));
+  }
+  function applyStep(slide, k) {
+    k = Math.max(0, Math.min(k, slide._groups.length));
+    slide._groups.forEach((g, i) => g.forEach(el => {
+      const out = parseInt(el.dataset.stepOut, 10);
+      el.classList.toggle('is-visible', i + 1 <= k && !(Number.isFinite(out) && k >= out));
+      el.classList.toggle('is-current', i + 1 === k);
+    }));
+    return k;
+  }
+  slides.forEach(collect);
+
+  // ---------- 원칙 5: transitions (WAAPI, skip-to-end on new input) ----------
+  const EFFECTS = {
+    fade:  () => ({ out: [{ opacity: 1 }, { opacity: 0 }], in: [{ opacity: 0 }, { opacity: 1 }] }),
+    slide: d => ({ out: [{ transform: 'translateX(0)' }, { transform: `translateX(${-100 * d}%)` }],
+                   in:  [{ transform: `translateX(${100 * d}%)` }, { transform: 'translateX(0)' }] }),
+    zoom:  d => ({ out: [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: `scale(${d > 0 ? 1.5 : 0.6})` }],
+                   in:  [{ opacity: 0, transform: `scale(${d > 0 ? 0.6 : 1.5})` }, { opacity: 1, transform: 'scale(1)' }] }),
+  };
+  function swap(from, to) {
+    if (active) active.done();
+    slides.forEach((s, i) => { s.inert = i !== to; });
+    const inEl = slides[to], outEl = slides[from];
+    if (!outEl) { inEl.classList.add('is-current'); return; }            // first render: no animation
+    let name = inEl.dataset.transition || O.transition, duration = O.duration;
+    if (reduce.matches) { name = 'fade'; duration = 150; }
+    const fx = (EFFECTS[name] || EFFECTS.fade)(to > from ? 1 : -1);
+    stage.dataset.animating = '';
+    outEl.classList.remove('is-current');
+    outEl.classList.add('is-outgoing');
+    inEl.classList.add('is-incoming');
+    outEl.style.willChange = inEl.style.willChange = 'transform, opacity';
+    const opts = { duration, easing: 'cubic-bezier(.2,.7,.2,1)', fill: 'both' };
+    const anims = [outEl.animate(fx.out, opts), inEl.animate(fx.in, opts)];
+    const t = {
+      done() {                                                            // idempotent
+        if (active !== t) return;
+        active = null;
+        clearTimeout(t.timer);
+        outEl.classList.remove('is-outgoing');
+        inEl.classList.remove('is-incoming');
+        inEl.classList.add('is-current');
+        outEl.style.willChange = inEl.style.willChange = '';
+        delete stage.dataset.animating;
+        anims.forEach(a => a.cancel());
+      },
+    };
+    active = t;
+    t.timer = setTimeout(t.done, duration + 200);                         // safety net
+    Promise.all(anims.map(a => a.finished)).then(t.done)
+      .catch(e => { if (e.name !== 'AbortError') console.error(e); });
+  }
+
+  // ---------- render ----------
+  function show(i, k, { fromUser = true } = {}) {
+    i = Math.max(0, Math.min(i, n - 1));
+    const changed = i !== cur, prevStep = step;
+    if (changed) swap(cur, i);
+    cur = i;
+    step = applyStep(slides[i], k);
+    if (!changed && step === prevStep) return;
+    root.style.setProperty('--progress', n > 1 ? i / (n - 1) : 0);
+    counter.textContent = `${i + 1} / ${n}`;
+    const text = changed
+      ? `슬라이드 ${i + 1} / ${n}: ${slides[i].querySelector('h1, h2')?.textContent.trim() ?? ''}`
+      : step > prevStep ? slides[i]._groups[step - 1].map(el => el.textContent.trim()).join(' ') : '';
+    if (text) requestAnimationFrame(() => { status.textContent = text; });
+    writeHash(changed && fromUser);
+    updateLive();
+    if (changed) startAutoplay(slides[i]);
+  }
+  function next() {
+    stopAutoplay();
+    if (step < slides[cur]._groups.length) show(cur, step + 1);
+    else if (cur < n - 1) show(cur + 1, 0);
+  }
+  function prev() {
+    stopAutoplay();
+    if (step > 0) show(cur, step - 1);
+    else if (cur > 0) show(cur - 1, Infinity);                            // previous slide: all steps visible
+  }
+
+  // ---------- 원칙 7: URL hash #/3 or #/3.2 (1-based slide) ----------
+  function readHash() {
+    const m = /^#\/(\d+)(?:\.(\d+))?$/.exec(location.hash);
+    return m ? [parseInt(m[1], 10) - 1, m[2] ? parseInt(m[2], 10) : 0] : [0, 0];
+  }
+  function writeHash(push) {
+    const hash = `#/${cur + 1}${step ? '.' + step : ''}`;
+    if (location.hash === hash) return;
+    try {
+      if (O.historyMode === 'push' && push) history.pushState(null, '', hash);
+      else history.replaceState(null, '', hash);
+    } catch { /* SecurityError when called too often, or file:// restrictions */ }
+  }
+  const onUrl = () => { const [i, k] = readHash(); show(i, k, { fromUser: false }); };
+
+  // ---------- 원칙 7: keyboard ----------
+  const EDITABLE = 'input, textarea, select, [contenteditable]:not([contenteditable="false"])';
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) root.requestFullscreen?.().catch(() => {});
+    else document.exitFullscreen?.();
+  }
+  function onKey(e) {
+    if (e.defaultPrevented || e.isComposing || e.keyCode === 229) return;  // IME composition
+    if (e.ctrlKey || e.metaKey || e.altKey) return;                        // browser shortcuts
+    const t = e.target;
+    if (t.closest?.(EDITABLE)) return;
+    if ((e.key === ' ' || e.key === 'Enter') && t.closest?.('button, a, summary')) return;
+    let action = null, nav = true;
+    switch (e.key) {
+      case 'ArrowRight': case 'ArrowDown': case 'PageDown': action = next; break;
+      case 'ArrowLeft':  case 'ArrowUp':   case 'PageUp':   action = prev; break;
+      case ' ':    action = e.shiftKey ? prev : next; break;
+      case 'Home': action = () => { stopAutoplay(); show(0, 0); }; break;
+      case 'End':  action = () => { stopAutoplay(); show(n - 1, Infinity); }; break;
+      case '.':    action = () => root.classList.toggle('is-black'); nav = false; break;
+      default:
+        if (e.code === 'KeyN') action = next;                              // physical key: works in Korean IME state
+        else if (e.code === 'KeyP') action = prev;
+        else if (e.code === 'KeyB') { action = () => root.classList.toggle('is-black'); nav = false; }
+        else if (e.code === 'KeyF') { action = toggleFullscreen; nav = false; }
+    }
+    if (!action) return;                                                    // unhandled key: keep default
+    e.preventDefault();                                                     // stop page scroll even on repeat
+    if (e.repeat && !O.allowRepeat) return;
+    if (nav) root.classList.remove('is-black');
+    action();
+  }
+
+  // ---------- 원칙 7: swipe (touch only) ----------
+  let start = null;
+  function onDown(e) {
+    if (e.pointerType !== 'touch') return;
+    if (start) { start = null; return; }                                   // second finger: cancel
+    if (e.target.closest('[data-prevent-swipe], video[controls], audio[controls]')) return;
+    start = { id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp };
+  }
+  function onUp(e) {
+    if (!start || e.pointerId !== start.id) return;
+    const dx = e.clientX - start.x, dy = e.clientY - start.y, dt = e.timeStamp - start.t;
+    start = null;
+    if (Math.abs(dx) < Math.max(O.swipeMin, stage.clientWidth * 0.08) || Math.abs(dx) < Math.abs(dy) * 1.2 || dt > 600) return;
+    dx < 0 ? next() : prev();
+  }
+
+  // ---------- 원칙 6: autoplay <section data-autoplay="900"> ----------
+  function startAutoplay(slide) {
+    stopAutoplay();
+    const ms = parseInt(slide.dataset.autoplay, 10);
+    if (!ms) return;
+    if (reduce.matches) { step = applyStep(slide, Infinity); writeHash(false); updateLive(); return; }
+    const tick = () => {
+      if (slides[cur] === slide && step < slide._groups.length) { show(cur, step + 1); autoTimer = setTimeout(tick, ms); }
+    };
+    autoTimer = setTimeout(tick, ms);
+  }
+  function stopAutoplay() { clearTimeout(autoTimer); autoTimer = null; }
+
+  function updateLive() {}
+
+  // ---------- bind ----------
+  document.addEventListener('keydown', onKey);
+  addEventListener('hashchange', onUrl);
+  addEventListener('popstate', onUrl);
+  stage.addEventListener('pointerdown', onDown, { passive: true });
+  stage.addEventListener('pointerup', onUp, { passive: true });
+  stage.addEventListener('pointercancel', () => { start = null; }, { passive: true });
+  document.querySelector('.controls').addEventListener('click', e => {
+    const a = e.target.closest('[data-action]')?.dataset.action;
+    if (a === 'next') next();
+    else if (a === 'prev') prev();
+    else if (a === 'full') toggleFullscreen();
+  });
+
+  // ---------- 원칙 10: print = every slide, every step ----------
+  addEventListener('beforeprint', () => {
+    if (active) active.done();
+    slides.forEach(s => { s.inert = false; applyStep(s, Infinity); });
+  });
+  addEventListener('afterprint', () => {
+    slides.forEach((s, i) => { s.inert = i !== cur; applyStep(s, i === cur ? step : 0); });
+  });
+
+  onUrl();
+  writeHash(false);                                                         // normalize URL without adding history
+})();
+</script>
+</body>
+</html>
