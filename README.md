@@ -5,6 +5,7 @@
 
 | 날짜 | 발표 | 링크 |
 |---|---|---|
+| 2026-11-11 | 화천 간동 교원 회복 워크숍 — 지역 부가가치 보강안 (v1) | [열기](https://lethegod.github.io/mice-presentations/%EB%B0%9C%ED%91%9C%EC%9E%90%EB%A3%8C_MICE/20261111_%ED%99%94%EC%B2%9C%EA%B0%84%EB%8F%99%EC%A7%80%EC%97%AD%EB%B6%80%EA%B0%80%EA%B0%80%EC%B9%98%EB%B3%B4%EA%B0%95%EC%95%88_v1.html) |
 | 2026-11-05 | 화천 간동 교원 회복 워크숍 (v1) | [열기](https://lethegod.github.io/mice-presentations/%EB%B0%9C%ED%91%9C%EC%9E%90%EB%A3%8C_MICE/20261105_%ED%99%94%EC%B2%9C%EA%B0%84%EB%8F%99%EA%B5%90%EC%9B%90%ED%9A%8C%EB%B3%B5%EC%9B%8C%ED%81%AC%EC%88%8D_v1.html) |
 
 ## 발표자료_교양

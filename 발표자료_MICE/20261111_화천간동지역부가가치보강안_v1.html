@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>지역 부가가치 보강안</title>
+<!--
+  ppt-slide 템플릿. 사용법은 SKILL.md.
+  - 색은 :root 팔레트 블록만 바꾼다 (승인된 팔레트).
+  - 슬라이드는 <section class="slide"> 를 복사해 내용만 바꾼다. 엔진 CSS·JS는 고치지 않는다.
+  - 모든 크기는 calc(N * var(--u)) — 1920x1080 시안 기준 px.
+-->
+<script>document.documentElement.classList.add('js')</script>
+<style>
+  /* ===== 팔레트: 주제별로 이 블록만 바꾼다 (ppt-research.md 2-6) =====
+     승인된 팔레트 이름: B안 · 들기름 호박색·파로호 파랑·따뜻한 흰색 (흰 바탕)
+     글자 토큰(ink·muted·accent·accent-2·good·bad)은 paper·accent-soft 위에서 4.5:1 이상 */
+  :root {
+    --bg: #1c1813;            /* 레터박스 띠 (무대 밖) */
+    --paper: #fffdf7;         /* 슬라이드 배경 */
+    --ink: #2a241d;           /* 본문 글자 */
+    --muted: #635a4f;         /* 보조 글자·출처 */
+    --line: #e8dfcf;          /* 구분선·테두리 (장식) */
+    --soft: #f7f1e6;          /* 코드·막대 바탕 */
+    --accent: #875610;        /* 주 강조: 제목 위 라벨, 진행 막대, 선택 행 */
+    --accent-soft: #f5ecd9;   /* 주 강조의 연한 바탕 */
+    --accent-2: #1d5c78;      /* 보조 강조: 두 번째 계열 */
+    --good: #2d6a38;          /* 긍정·권장 */
+    --bad: #a3392a;           /* 부정·주의 */
+    --hl: #ffe9a8;            /* 형광펜 스텝 */
+    /* ===== 팔레트 끝 ===== */
+    --step-dur: .4s;
+    --step-gap: 80ms;
+    --progress: 0;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }   /* iOS 가로 모드 글자 자동 확대 방지 */
+  body {
+    background: var(--bg);
+    display: grid;
+    place-items: center;
+    height: 100vh; height: 100dvh;
+    overflow: hidden;
+    font-family: system-ui, -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  }
+
+  /* ---------- 원칙 1·2: 16:9 무대 ---------- */
+  .stage {
+    /* 너비·높이를 둘 다 명시: aspect-ratio 없이도 항상 16:9 */
+    width:  min(100vw, 100vh * 16 / 9);
+    height: min(100vh, 100vw * 9 / 16);
+    width:  min(100vw, 100dvh * 16 / 9);
+    height: min(100dvh, 100vw * 9 / 16);
+    --u: min(100vw / 1920, 100vh / 1080);     /* 1920px 시안의 1px */
+    position: relative;
+    overflow: hidden;                         /* 내용이 넘쳐도 무대 크기는 그대로 */
+    display: grid;
+    grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+    touch-action: pan-y pinch-zoom;
+    background: var(--paper);
+    color: var(--ink);
+  }
+  @supports (height: 100dvh) {
+    .stage { --u: min(100vw / 1920, 100dvh / 1080); }
+  }
+
+  /* ---------- 원칙 3·4: 겹치기 + 숨김 ---------- */
+  .slide {
+    grid-area: 1 / 1;
+    overflow: hidden;
+    padding: calc(84 * var(--u)) calc(112 * var(--u)) calc(72 * var(--u));
+    font-size: calc(32 * var(--u));
+    line-height: 1.5;
+    display: flex;
+    flex-direction: column;
+    background: var(--paper);                 /* 불투명: 아래 장의 잔상이 비치지 않게 */
+    word-break: keep-all;                     /* 한국어를 글자 중간이 아니라 띄어쓰기에서만 줄바꿈 */
+    overflow-wrap: break-word;                /* 띄어쓰기 없는 긴 영문·숫자만 예외로 끊음 */
+  }
+  .slide h1, .slide h2, .slide h3 { text-wrap: balance; }   /* 두 줄이 되면 줄 길이를 고르게 (미지원 브라우저는 무시) */
+  .slide p, .slide li, .slide td { text-wrap: pretty; }     /* 마지막 줄에 한 단어만 남는 것 방지 (미지원 브라우저는 무시) */
+  .nowrap { white-space: nowrap; }                          /* 전화번호·시간·날짜·단위는 한 덩어리로 */
+  .js .slide { visibility: hidden; }
+  .js .slide.is-current,
+  .js .slide.is-outgoing,
+  .js .slide.is-incoming { visibility: visible; }
+  .slide.is-outgoing { z-index: 1; }
+  .slide.is-incoming, .slide.is-current { z-index: 2; }
+  .stage[data-animating] .slide { pointer-events: none; }
+  html:not(.js) .slide:not(:first-child) { display: none; }    /* JS 꺼짐: 첫 장만 */
+
+  /* ---------- 공통 타이포 ---------- */
+  .eyebrow { color: var(--accent); font-weight: 700; font-size: calc(24 * var(--u)); letter-spacing: .04em; margin: 0 0 calc(10 * var(--u)); }
+  .slide h1 { font-size: calc(92 * var(--u)); line-height: 1.15; margin: 0 0 calc(28 * var(--u)); }
+  .slide h2 { font-size: calc(60 * var(--u)); line-height: 1.2; margin: 0 0 calc(36 * var(--u)); }
+  .slide h3 { font-size: calc(30 * var(--u)); margin: 0 0 calc(14 * var(--u)); }
+  .slide p  { margin: 0 0 calc(16 * var(--u)); }
+  .slide ul, .slide ol { margin: 0; padding-left: 1.2em; }
+  .slide li { margin: 0 0 calc(10 * var(--u)); }
+  .muted { color: var(--muted); }
+  .spacer { flex: 1; }
+  .footnote { font-size: calc(20 * var(--u)); color: var(--muted); margin: calc(16 * var(--u)) 0 0 !important; }
+  .cols { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: calc(52 * var(--u)); align-items: start; }
+  .ok { color: var(--good); font-weight: 700; }
+  .no { color: var(--bad); font-weight: 700; }
+
+  code, pre, kbd, .live { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  pre {
+    margin: 0; padding: calc(26 * var(--u)) calc(30 * var(--u));
+    background: var(--soft); border-radius: calc(14 * var(--u));
+    font-size: calc(24 * var(--u)); line-height: 1.6; white-space: pre; overflow: hidden;
+  }
+  kbd {
+    display: inline-block; min-width: 1.8em; text-align: center;
+    padding: 0 .4em; border: calc(2 * var(--u)) solid var(--line);
+    border-bottom-width: calc(4 * var(--u)); border-radius: calc(8 * var(--u));
+    font-size: .85em; background: var(--paper);
+  }
+  .live { color: var(--accent); font-weight: 700; }
+
+  .callout {
+    background: var(--accent-soft);
+    border-left: calc(8 * var(--u)) solid var(--accent);
+    border-radius: calc(14 * var(--u));
+    padding: calc(26 * var(--u)) calc(32 * var(--u));
+    font-size: calc(28 * var(--u));
+  }
+  .callout h3 { color: var(--accent); }
+  .callout ul { padding-left: 1em; }
+
+  table { border-collapse: collapse; width: 100%; font-size: calc(26 * var(--u)); }
+  th, td { text-align: left; padding: calc(12 * var(--u)) calc(18 * var(--u)); border-bottom: calc(2 * var(--u)) solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  tr.pick td { background: var(--accent-soft); font-weight: 600; }
+
+  .map { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: calc(14 * var(--u)) calc(48 * var(--u)); font-size: calc(27 * var(--u)); }
+  .map div { display: grid; grid-template-columns: calc(150 * var(--u)) 1fr calc(110 * var(--u)); gap: calc(14 * var(--u)); padding: calc(12 * var(--u)) 0; border-bottom: calc(2 * var(--u)) solid var(--line); }
+  .map b { color: var(--accent); }
+  .map span:last-child { color: var(--muted); text-align: right; }
+
+  .cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: calc(28 * var(--u)); }
+  .cards.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .card { border: calc(2 * var(--u)) solid var(--line); border-radius: calc(18 * var(--u)); padding: calc(28 * var(--u)); font-size: calc(26 * var(--u)); }
+  .card b { display: block; font-size: calc(34 * var(--u)); margin-bottom: calc(8 * var(--u)); }
+  .card.pick { border-color: var(--accent); }
+
+  .timeline { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: calc(24 * var(--u)); }
+  .timeline div { border-top: calc(8 * var(--u)) solid var(--accent); padding-top: calc(18 * var(--u)); font-size: calc(28 * var(--u)); }
+  .timeline b { display: block; font-size: calc(40 * var(--u)); }
+
+  .notes { display: none; }
+
+  /* ---------- 원칙 6: 빌드 스텝 ---------- */
+  /* 스텝 전환은 현재 장에서만 켠다. 장이 숨겨질 때 스텝이 visibility 전환 때문에
+     0.4초 더 보이는 잔상(9→10장)을 막기 위해서다. 장이 나가기 시작하면 is-current가
+     빠지므로 스텝은 슬라이드와 함께 즉시 숨겨진다. */
+  .js .slide.is-current [data-step] {
+    transition: opacity var(--step-dur) ease, transform var(--step-dur) ease,
+                visibility var(--step-dur), background-size var(--step-dur) ease;
+  }
+  .js [data-step]:not(.is-visible):not([data-effect="highlight"]):not([data-effect="strike"]) {
+    opacity: 0; visibility: hidden;
+  }
+  .js .slide.is-current [data-step].is-visible { transition-delay: calc(var(--i, 0) * var(--step-gap)); }   /* stagger: 나타날 때만 */
+  .js [data-effect="fade-up"], .js [data-effect="grow"] { display: inline-block; }
+  .js p[data-effect], .js .card[data-effect], .js .timeline > [data-effect] { display: block; }
+  .js li[data-effect] { display: list-item; }
+  .js [data-effect="fade-up"]:not(.is-visible) { transform: translateY(1em); }
+  .js [data-effect="grow"]:not(.is-visible)    { transform: scale(.85); }
+  [data-effect="highlight"] {
+    background: linear-gradient(var(--hl), var(--hl)) no-repeat 0 100% / 0% 100%;
+    color: inherit;
+  }
+  .js [data-effect="highlight"].is-visible { background-size: 100% 100%; }
+  .js [data-effect="strike"].is-visible    { text-decoration: line-through; opacity: .55; }
+
+  /* ---------- 원칙 7: 진행 막대·번호 (무대 안) ---------- */
+  .progress { position: absolute; left: 0; right: 0; bottom: 0; height: calc(8 * var(--u)); background: var(--soft); z-index: 5; }
+  .progress > span {
+    display: block; height: 100%; background: var(--accent);
+    transform: scaleX(var(--progress)); transform-origin: 0 50%;
+    transition: transform .3s ease;
+  }
+  /* 버튼·번호도 무대 안에 두고 --u로 크기 지정: 어떤 창에서도 같은 자리 */
+  .controls {
+    position: absolute; right: calc(32 * var(--u)); bottom: calc(18 * var(--u)); z-index: 5;
+    display: flex; align-items: center; gap: calc(10 * var(--u));
+    opacity: .6; transition: opacity .2s;
+  }
+  .controls:hover, .controls:focus-within { opacity: 1; }
+  .controls button {
+    width: calc(44 * var(--u)); height: calc(44 * var(--u)); padding: 0;
+    border-radius: calc(10 * var(--u)); border: calc(2 * var(--u)) solid var(--line);
+    background: var(--paper); color: var(--ink);
+    font: calc(24 * var(--u))/1 system-ui, sans-serif; cursor: pointer;
+  }
+  .controls button:focus-visible { outline: calc(3 * var(--u)) solid var(--accent); outline-offset: calc(3 * var(--u)); }
+  .counter { margin: 0 calc(6 * var(--u)); font-size: calc(22 * var(--u)); color: var(--muted); min-width: 3.5em; text-align: center; }
+
+  /* 화면 끄기 ( . 또는 B ) */
+  .blackout { position: fixed; inset: 0; background: #000; z-index: 30; display: none; }
+  html.is-black .blackout { display: block; }
+
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+  /* ---------- 원칙 9: 모션 축소 ---------- */
+  @media (prefers-reduced-motion: reduce) {
+    .js [data-step] { transform: none !important; }
+    .js .slide.is-current [data-step] {
+      transition: opacity .15s linear, visibility .15s, background-size 0s !important;
+      transition-delay: 0s !important;
+    }
+    .progress > span { transition: none; }
+  }
+
+  /* ---------- 원칙 10: 인쇄 = 1장 1페이지, 16:9 용지 ---------- */
+  @page { size: 16in 9in; margin: 0; }
+  @media print {
+    html, body { display: block; height: auto; overflow: visible; background: none; }
+    .stage { display: block; width: 16in; height: auto; overflow: visible; --u: calc(16in / 1920); }
+    .slide, .js .slide, html:not(.js) .slide:not(:first-child) {
+      display: flex; visibility: visible !important; opacity: 1 !important; transform: none !important;
+      width: 16in; height: 9in; break-after: page;
+    }
+    section.slide:last-of-type { break-after: auto; }
+    .js [data-step] { opacity: 1 !important; visibility: visible !important; transform: none !important; transition: none !important; }
+    .progress, .controls, .blackout, .sr-only { display: none !important; }   /* 마지막 빈 페이지 방지 */
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+
+  /* ---------- 이 발표 전용 (색은 팔레트 토큰만) ---------- */
+  .slide p.big { font-size: calc(54 * var(--u)); line-height: 1.35; margin: 0 0 calc(28 * var(--u)); }
+  .slide table { font-size: calc(30 * var(--u)); }
+  .slide th, .slide td { padding: calc(18 * var(--u)) calc(18 * var(--u)); }
+  .slide .callout { font-size: calc(30 * var(--u)); }
+  .card { font-size: calc(32 * var(--u)); line-height: 1.6; padding: calc(36 * var(--u)); }
+  .card b { font-size: calc(40 * var(--u)); }
+  .card .tag { display: block; color: var(--accent-2); font-weight: 600; font-size: calc(26 * var(--u)); margin-bottom: calc(16 * var(--u)); }
+  table.ideas td:first-child { font-weight: 700; color: var(--accent); }
+  table.ideas tr.pick td:first-child { color: var(--accent); }
+  .callout.warn { border-left-color: var(--accent-2); background: var(--soft); }
+  .callout p:last-child { margin-bottom: 0; }
+</style>
+</head>
+<body>
+<main class="deck" aria-roledescription="발표 자료" aria-label="지역 부가가치 보강안">
+  <div class="stage" id="stage">
+
+    <!-- 1. 표지 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t1">
+      <p class="eyebrow">화천 간동 교원 회복 워크숍 · 지역 부가가치 보강안</p>
+      <h1 id="t1">쓰고 끝나는 돈에서,<br>지역에 남는 돈으로</h1>
+      <p class="muted">진단 · 보강 아이디어 7개 · 결과 지표 · 추천</p>
+      <div class="spacer"></div>
+      <p class="footnote">2026-11-11 · 로컬콘텐츠 개발 C조 · 검토용 초안 (원본: 20261105 기획안 v1)</p>
+      <aside class="notes">원본 기획안의 지역 지표는 '얼마나 썼나'에 머문다. 이 보강안은 행사 뒤에 지역에 무엇이 남는지를 설계한다.</aside>
+    </section>
+
+    <!-- 2. 결론 (강조형 스텝) -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t2">
+      <p class="eyebrow">결론</p>
+      <h2 id="t2">지금은 지역에 남는 구조가 없다</h2>
+      <p class="big" data-step data-effect="strike">식사 · 체험 · 숙박비를 한 번 쓰고 끝나는 돈</p>
+      <p class="big">목표는 <mark data-step data-effect="highlight">행사 뒤에도 다시 들어오는 돈</mark>이다.</p>
+      <div class="spacer"></div>
+      <div class="callout" data-step data-effect="fade-up">
+        <h3>가장 큰 지렛대</h3>
+        <p>교사를 참가자가 아니라 <b>'다시 데려올 사람'</b>으로 본다. 교사는 학교 체험학습 장소를 정한다.</p>
+      </div>
+      <aside class="notes">세 가지가 빠져 있다: 행사 뒤 매출 경로, 지역에 남는 상품, 주민이 돈을 받는 역할.</aside>
+    </section>
+
+    <!-- 3. 진단 (2단 본문) -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t3">
+      <p class="eyebrow">진단 · 원본 덱 기준 사실</p>
+      <h2 id="t3">지역 지표가 '쓴 돈'에서 멈춘다</h2>
+      <div class="cols">
+        <ul>
+          <li>지역 지표는 투입뿐: 지출 60%, 업체 5곳</li>
+          <li>덱에 예산표가 없어 60%를 검증할 수 없다</li>
+          <li>숙소·버스 미정: 큰 지출이 지역 밖으로 샐 수 있다 (추정)</li>
+          <li>특산물 구매 KPI는 있지만, 시간표에 구매 시간이 없다</li>
+        </ul>
+        <div class="callout">
+          <h3>빠진 세 가지</h3>
+          <ul>
+            <li>행사 뒤에도 이어지는 매출 경로</li>
+            <li>지역에 남는 상품과 코스</li>
+            <li>주민이 돈을 받고 맡는 역할</li>
+          </ul>
+        </div>
+      </div>
+      <div class="spacer"></div>
+      <p class="footnote">근거: 원본 기획안 v1(2026-11-05) 22·27·35장</p>
+    </section>
+
+    <!-- 4. 세 갈래 (카드) -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t4">
+      <p class="eyebrow">보강 방향</p>
+      <h2 id="t4">세 갈래로 지역에 남긴다</h2>
+      <div class="cards three">
+        <div class="card" data-step="1" data-effect="fade-up"><b>행사 뒤 매출</b><span class="tag">다시 들어오는 돈</span>① 체험학습 연결<br>④ 사후 구매 경로<br>⑤ 가족 재방문 쿠폰</div>
+        <div class="card" data-step="1" data-effect="fade-up"><b>남는 상품</b><span class="tag">다시 팔 수 있는 것</span>② 회복 코스 패키지<br>③ 공동 회복 키트</div>
+        <div class="card" data-step="1" data-effect="fade-up"><b>주민·지역 안 순환</b><span class="tag">밖으로 새지 않는 돈</span>⑥ 주민을 진행자로<br>⑦ 새는 돈 막기</div>
+      </div>
+      <div class="spacer"></div>
+      <div class="callout" data-step="2" data-effect="fade-up">
+        <p><b>바뀌는 것:</b> "예산을 지역에서 얼마나 썼나" → "행사 뒤 지역에 무엇이 남았나"</p>
+      </div>
+    </section>
+
+    <!-- 5. 아이디어 ①~④ (표) -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t5" data-transition="fade">
+      <p class="eyebrow">보강 아이디어 ①~④</p>
+      <h2 id="t5">행사가 끝나도 매출이 이어지게</h2>
+      <table class="ideas">
+        <colgroup><col style="width:21%"><col style="width:22%"><col style="width:30%"><col style="width:27%"></colgroup>
+        <thead><tr><th>아이디어</th><th>남는 가치</th><th>프로그램 반영</th><th>실행 조건</th></tr></thead>
+        <tbody>
+          <tr class="pick"><td>① 체험학습 연결</td><td>교사 40명이 40개 학교로 가는 통로</td><td>마무리 때 "우리 반과 다시 오는 간동" 메뉴판·QR</td><td>학생 단체 수용, 체험학습 안전 기준 (확인 필요)</td></tr>
+          <tr class="pick"><td>② 회복 코스 패키지</td><td>다른 돌봄 직군에 다시 판매</td><td>이번 행사를 시범 운영으로, 보고서에 단가 첨부</td><td>업체 간 수익 배분, 대표 창구 (확인 필요)</td></tr>
+          <tr><td>③ 공동 회복 키트</td><td>업체 4곳을 묶은 지역 상품</td><td>수료 기념품: 들기름·수확물·목공 소품·드립백</td><td>식품 표시, 단가, 기념품 집행 규정 (확인 필요)</td></tr>
+          <tr><td>④ 사후 구매 경로</td><td>행사 뒤에도 이어지는 매출</td><td>키트에 온라인몰 QR, 9월 설문 때 쿠폰</td><td>업체별 입점 여부, 쿠폰 비용 부담 주체</td></tr>
+        </tbody>
+      </table>
+      <div class="spacer"></div>
+      <p class="footnote">색칠한 행 = 추천 핵심안 · 모든 아이디어는 제안이며, 수치는 아직 없음</p>
+    </section>
+
+    <!-- 6. 아이디어 ⑤~⑦ (표) -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t6" data-transition="fade">
+      <p class="eyebrow">보강 아이디어 ⑤~⑦</p>
+      <h2 id="t6">주민 몫을 키우고, 새는 돈을 막는다</h2>
+      <table class="ideas">
+        <colgroup><col style="width:21%"><col style="width:22%"><col style="width:30%"><col style="width:27%"></colgroup>
+        <thead><tr><th>아이디어</th><th>남는 가치</th><th>프로그램 반영</th><th>실행 조건</th></tr></thead>
+        <tbody>
+          <tr><td>⑤ 가족 재방문 쿠폰</td><td>비수기 개인 관광 수요</td><td>수료증과 함께 공동 쿠폰<span class="nowrap">(체험+숙박)</span> 배부</td><td>할인 비용 분담, 사용 기한 <span class="nowrap">(가을·겨울)</span></td></tr>
+          <tr><td>⑥ 주민을 진행자로</td><td>시설 이용료가 아닌 주민 인건비</td><td>느릅마을 30분을 주민 해설로, 청년농부가 수확 진행</td><td>강사료 단가, 해설 내용 사전 점검</td></tr>
+          <tr class="pick"><td>⑦ 새는 돈 막기</td><td>같은 예산, 더 큰 지역 몫</td><td>간동면 숙소(오음리 만남의 장 검토), 수확물 반찬, 지역 간식</td><td>단체 숙박 가능 여부, 지역 버스 업체 (확인 필요)</td></tr>
+        </tbody>
+      </table>
+      <div class="spacer"></div>
+      <div class="callout warn">
+        <p><b>고향사랑기부제 유의:</b> 참가 교사 대부분이 화천 밖 거주자라 대상일 수 있다(추정). 다만 법상 모금 방식에 제한이 있어, 연수 중 안내해도 되는지 화천군에 확인 필요.</p>
+      </div>
+    </section>
+
+    <!-- 7. 결과 지표 (표) -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t7" data-transition="fade">
+      <p class="eyebrow">성과 지표 보강</p>
+      <h2 id="t7">'쓴 돈'에서 '남은 것'으로 잰다</h2>
+      <table>
+        <colgroup><col style="width:28%"><col style="width:50%"><col style="width:22%"></colgroup>
+        <thead><tr><th>지금 (투입 지표)</th><th>추가할 결과 지표</th><th>측정 시점</th></tr></thead>
+        <tbody>
+          <tr><td>지역 지출 60%</td><td>업체별 매출액, 그중 주민 인건비 총액</td><td class="nowrap">D+14 결과 보고</td></tr>
+          <tr><td>특산물 구매 절반 이상</td><td>키트 QR을 통한 재구매 건수</td><td class="nowrap">D+30 · D+90</td></tr>
+          <tr><td>"또 오고 싶다" 70%</td><td>실제 재방문 · 쿠폰 사용 건수</td><td class="nowrap">D+90</td></tr>
+          <tr class="pick"><td>(없음)</td><td>학생 체험학습 · 타 기관 연수 문의 건수</td><td class="nowrap">D+90</td></tr>
+        </tbody>
+      </table>
+      <div class="spacer"></div>
+      <p class="footnote">기존 지표: 원본 덱 34·35장 · D+90(행사일 8/18 기준 11월 중순)은 새로 추가하는 측정 시점</p>
+    </section>
+
+    <!-- 8. 추천 (카드) -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t8">
+      <p class="eyebrow">추천</p>
+      <h2 id="t8">①·②를 핵심으로, ⑦을 기본으로</h2>
+      <div class="cards three">
+        <div class="card pick"><b>핵심 ① 체험학습 연결</b>교육청 재구매를 넘어<br>학교라는 새 고객을 연다</div>
+        <div class="card pick"><b>핵심 ② 코스 패키지</b>교원 밖 돌봄 직군으로 확장,<br>원본 36장 확장 근거와 연결</div>
+        <div class="card"><b>기본 ⑦ 새는 돈 막기</b>숙소·식사·간식을<br>간동면 안에서 해결</div>
+      </div>
+      <div class="spacer"></div>
+      <div class="callout">
+        <p><b>먼저 할 일: 예산표 작성.</b> 있어야 60% 목표와 지역 몫을 숫자로 증명할 수 있다.</p>
+      </div>
+      <aside class="notes">①·②는 "교육청이 내년에 다시 산다"는 목표를 "다른 고객도 산다"로 넓힌다.</aside>
+    </section>
+
+    <div class="progress" aria-hidden="true"><span></span></div>
+    <nav class="controls" aria-label="슬라이드 이동">
+      <button type="button" data-action="prev" aria-label="이전 슬라이드">‹</button>
+      <span class="counter" id="counter" aria-hidden="true"></span>
+      <button type="button" data-action="next" aria-label="다음 슬라이드">›</button>
+      <button type="button" data-action="full" aria-label="전체화면">⛶</button>
+    </nav>
+  </div>
+  <div class="sr-only" id="status" aria-live="polite" aria-atomic="true"></div>
+</main>
+<div class="blackout" aria-hidden="true"></div>
+
+<script>
+(() => {
+  const O = { transition: 'slide', duration: 500, historyMode: 'replace', allowRepeat: false, swipeMin: 40 };
+  const root = document.documentElement;
+  const stage = document.getElementById('stage');
+  const slides = [...stage.querySelectorAll(':scope > .slide')];
+  const status = document.getElementById('status');
+  const counter = document.getElementById('counter');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+  const n = slides.length;
+  let cur = -1, step = 0, active = null, autoTimer = null;
+
+  // ---------- 원칙 6: steps ----------
+  // numbered groups first (ascending), then unnumbered elements in DOM order; renumbered 1..N
+  function collect(slide) {
+    const byNum = new Map(), free = [];
+    for (const el of slide.querySelectorAll('[data-step]')) {
+      const k = parseInt(el.dataset.step, 10);
+      if (Number.isFinite(k)) (byNum.get(k) || byNum.set(k, []).get(k)).push(el);
+      else free.push([el]);
+    }
+    slide._groups = [...[...byNum.keys()].sort((a, b) => a - b).map(k => byNum.get(k)), ...free];
+    slide._groups.forEach(g => g.forEach((el, j) => el.style.setProperty('--i', j)));
+  }
+  function applyStep(slide, k) {
+    k = Math.max(0, Math.min(k, slide._groups.length));
+    slide._groups.forEach((g, i) => g.forEach(el => {
+      const out = parseInt(el.dataset.stepOut, 10);
+      el.classList.toggle('is-visible', i + 1 <= k && !(Number.isFinite(out) && k >= out));
+      el.classList.toggle('is-current', i + 1 === k);
+    }));
+    return k;
+  }
+  slides.forEach(collect);
+
+  // ---------- 원칙 5: transitions (WAAPI, skip-to-end on new input) ----------
+  const EFFECTS = {
+    fade:  () => ({ out: [{ opacity: 1 }, { opacity: 0 }], in: [{ opacity: 0 }, { opacity: 1 }] }),
+    slide: d => ({ out: [{ transform: 'translateX(0)' }, { transform: `translateX(${-100 * d}%)` }],
+                   in:  [{ transform: `translateX(${100 * d}%)` }, { transform: 'translateX(0)' }] }),
+    zoom:  d => ({ out: [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: `scale(${d > 0 ? 1.5 : 0.6})` }],
+                   in:  [{ opacity: 0, transform: `scale(${d > 0 ? 0.6 : 1.5})` }, { opacity: 1, transform: 'scale(1)' }] }),
+  };
+  function swap(from, to) {
+    if (active) active.done();
+    slides.forEach((s, i) => { s.inert = i !== to; });
+    const inEl = slides[to], outEl = slides[from];
+    if (!outEl) { inEl.classList.add('is-current'); return; }            // first render: no animation
+    let name = inEl.dataset.transition || O.transition, duration = O.duration;
+    if (reduce.matches) { name = 'fade'; duration = 150; }
+    const fx = (EFFECTS[name] || EFFECTS.fade)(to > from ? 1 : -1);
+    stage.dataset.animating = '';
+    outEl.classList.remove('is-current');
+    outEl.classList.add('is-outgoing');
+    inEl.classList.add('is-incoming');
+    outEl.style.willChange = inEl.style.willChange = 'transform, opacity';
+    const opts = { duration, easing: 'cubic-bezier(.2,.7,.2,1)', fill: 'both' };
+    const anims = [outEl.animate(fx.out, opts), inEl.animate(fx.in, opts)];
+    const t = {
+      done() {                                                            // idempotent
+        if (active !== t) return;
+        active = null;
+        clearTimeout(t.timer);
+        outEl.classList.remove('is-outgoing');
+        inEl.classList.remove('is-incoming');
+        inEl.classList.add('is-current');
+        outEl.style.willChange = inEl.style.willChange = '';
+        delete stage.dataset.animating;
+        anims.forEach(a => a.cancel());
+      },
+    };
+    active = t;
+    t.timer = setTimeout(t.done, duration + 200);                         // safety net
+    Promise.all(anims.map(a => a.finished)).then(t.done)
+      .catch(e => { if (e.name !== 'AbortError') console.error(e); });
+  }
+
+  // ---------- render ----------
+  function show(i, k, { fromUser = true } = {}) {
+    i = Math.max(0, Math.min(i, n - 1));
+    const changed = i !== cur, prevStep = step;
+    if (changed) swap(cur, i);
+    cur = i;
+    step = applyStep(slides[i], k);
+    if (!changed && step === prevStep) return;
+    root.style.setProperty('--progress', n > 1 ? i / (n - 1) : 0);
+    counter.textContent = `${i + 1} / ${n}`;
+    const text = changed
+      ? `슬라이드 ${i + 1} / ${n}: ${slides[i].querySelector('h1, h2')?.textContent.trim() ?? ''}`
+      : step > prevStep ? slides[i]._groups[step - 1].map(el => el.textContent.trim()).join(' ') : '';
+    if (text) requestAnimationFrame(() => { status.textContent = text; });
+    writeHash(changed && fromUser);
+    updateLive();
+    if (changed) startAutoplay(slides[i]);
+  }
+  function next() {
+    stopAutoplay();
+    if (step < slides[cur]._groups.length) show(cur, step + 1);
+    else if (cur < n - 1) show(cur + 1, 0);
+  }
+  function prev() {
+    stopAutoplay();
+    if (step > 0) show(cur, step - 1);
+    else if (cur > 0) show(cur - 1, Infinity);                            // previous slide: all steps visible
+  }
+
+  // ---------- 원칙 7: URL hash #/3 or #/3.2 (1-based slide) ----------
+  function readHash() {
+    const m = /^#\/(\d+)(?:\.(\d+))?$/.exec(location.hash);
+    return m ? [parseInt(m[1], 10) - 1, m[2] ? parseInt(m[2], 10) : 0] : [0, 0];
+  }
+  function writeHash(push) {
+    const hash = `#/${cur + 1}${step ? '.' + step : ''}`;
+    if (location.hash === hash) return;
+    try {
+      if (O.historyMode === 'push' && push) history.pushState(null, '', hash);
+      else history.replaceState(null, '', hash);
+    } catch { /* SecurityError when called too often, or file:// restrictions */ }
+  }
+  const onUrl = () => { const [i, k] = readHash(); show(i, k, { fromUser: false }); };
+
+  // ---------- 원칙 7: keyboard ----------
+  const EDITABLE = 'input, textarea, select, [contenteditable]:not([contenteditable="false"])';
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) root.requestFullscreen?.().catch(() => {});
+    else document.exitFullscreen?.();
+  }
+  function onKey(e) {
+    if (e.defaultPrevented || e.isComposing || e.keyCode === 229) return;  // IME composition
+    if (e.ctrlKey || e.metaKey || e.altKey) return;                        // browser shortcuts
+    const t = e.target;
+    if (t.closest?.(EDITABLE)) return;
+    if ((e.key === ' ' || e.key === 'Enter') && t.closest?.('button, a, summary')) return;
+    let action = null, nav = true;
+    switch (e.key) {
+      case 'ArrowRight': case 'ArrowDown': case 'PageDown': action = next; break;
+      case 'ArrowLeft':  case 'ArrowUp':   case 'PageUp':   action = prev; break;
+      case ' ':    action = e.shiftKey ? prev : next; break;
+      case 'Home': action = () => { stopAutoplay(); show(0, 0); }; break;
+      case 'End':  action = () => { stopAutoplay(); show(n - 1, Infinity); }; break;
+      case '.':    action = () => root.classList.toggle('is-black'); nav = false; break;
+      default:
+        if (e.code === 'KeyN') action = next;                              // physical key: works in Korean IME state
+        else if (e.code === 'KeyP') action = prev;
+        else if (e.code === 'KeyB') { action = () => root.classList.toggle('is-black'); nav = false; }
+        else if (e.code === 'KeyF') { action = toggleFullscreen; nav = false; }
+    }
+    if (!action) return;                                                    // unhandled key: keep default
+    e.preventDefault();                                                     // stop page scroll even on repeat
+    if (e.repeat && !O.allowRepeat) return;
+    if (nav) root.classList.remove('is-black');
+    action();
+  }
+
+  // ---------- 원칙 7: swipe (touch only) ----------
+  let start = null;
+  function onDown(e) {
+    if (e.pointerType !== 'touch') return;
+    if (start) { start = null; return; }                                   // second finger: cancel
+    if (e.target.closest('[data-prevent-swipe], video[controls], audio[controls]')) return;
+    start = { id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp };
+  }
+  function onUp(e) {
+    if (!start || e.pointerId !== start.id) return;
+    const dx = e.clientX - start.x, dy = e.clientY - start.y, dt = e.timeStamp - start.t;
+    start = null;
+    if (Math.abs(dx) < Math.max(O.swipeMin, stage.clientWidth * 0.08) || Math.abs(dx) < Math.abs(dy) * 1.2 || dt > 600) return;
+    dx < 0 ? next() : prev();
+  }
+
+  // ---------- 원칙 6: autoplay <section data-autoplay="900"> ----------
+  function startAutoplay(slide) {
+    stopAutoplay();
+    const ms = parseInt(slide.dataset.autoplay, 10);
+    if (!ms) return;
+    if (reduce.matches) { step = applyStep(slide, Infinity); writeHash(false); updateLive(); return; }
+    const tick = () => {
+      if (slides[cur] === slide && step < slide._groups.length) { show(cur, step + 1); autoTimer = setTimeout(tick, ms); }
+    };
+    autoTimer = setTimeout(tick, ms);
+  }
+  function stopAutoplay() { clearTimeout(autoTimer); autoTimer = null; }
+
+  function updateLive() {}
+
+  // ---------- bind ----------
+  document.addEventListener('keydown', onKey);
+  addEventListener('hashchange', onUrl);
+  addEventListener('popstate', onUrl);
+  stage.addEventListener('pointerdown', onDown, { passive: true });
+  stage.addEventListener('pointerup', onUp, { passive: true });
+  stage.addEventListener('pointercancel', () => { start = null; }, { passive: true });
+  document.querySelector('.controls').addEventListener('click', e => {
+    const a = e.target.closest('[data-action]')?.dataset.action;
+    if (a === 'next') next();
+    else if (a === 'prev') prev();
+    else if (a === 'full') toggleFullscreen();
+  });
+
+  // ---------- 원칙 10: print = every slide, every step ----------
+  addEventListener('beforeprint', () => {
+    if (active) active.done();
+    slides.forEach(s => { s.inert = false; applyStep(s, Infinity); });
+  });
+  addEventListener('afterprint', () => {
+    slides.forEach((s, i) => { s.inert = i !== cur; applyStep(s, i === cur ? step : 0); });
+  });
+
+  onUrl();
+  writeHash(false);                                                         // normalize URL without adding history
+})();
+</script>
+</body>
+</html>
