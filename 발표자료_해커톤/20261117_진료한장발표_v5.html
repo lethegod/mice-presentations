@@ -1,0 +1,1433 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>진료 한 장 발표자료 v5</title>
+<!--
+  ppt-slide 템플릿. 사용법은 SKILL.md.
+  - 색은 :root 팔레트 블록만 바꾼다 (승인된 팔레트).
+  - 슬라이드는 <section class="slide"> 를 복사해 내용만 바꾼다. 엔진 CSS·JS는 고치지 않는다.
+  - 모든 크기는 calc(N * var(--u)) — 1920x1080 시안 기준 px.
+-->
+<script>document.documentElement.classList.add('js')</script>
+<style>
+  /* ===== 팔레트: 주제별로 이 블록만 바꾼다 (ppt-research.md 2-6) =====
+     승인된 팔레트 이름: 진료 한 장 v3 와인 톤 (2026-11-17 승인)
+     글자 토큰(ink·muted·accent·accent-2·good·bad)은 paper·accent-soft 위에서 4.5:1 이상 */
+  :root {
+    --bg: #2a1a1f;            /* 레터박스 띠 (무대 밖) */
+    --paper: #ffffff;         /* 슬라이드 배경 */
+    --ink: #222222;           /* 본문 글자 */
+    --muted: #5f5a5c;         /* 보조 글자·출처 */
+    --line: #e3d3d8;          /* 구분선·테두리 (장식) */
+    --soft: #faf5f6;          /* 코드·막대 바탕 */
+    --accent: #9b2c45;        /* 주 강조: 제목 위 라벨, 진행 막대, 선택 행 */
+    --accent-soft: #f6e6ea;   /* 주 강조의 연한 바탕 */
+    --accent-2: #7a4a2a;      /* 보조 강조: 두 번째 계열 */
+    --good: #22663a;          /* 긍정·권장 */
+    --bad: #8a5300;           /* 부정·주의 */
+    --hl: #fdecc8;            /* 형광펜 스텝 */
+    /* ===== 팔레트 끝 ===== */
+    --step-dur: .4s;
+    --step-gap: 80ms;
+    --progress: 0;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }   /* iOS 가로 모드 글자 자동 확대 방지 */
+  body {
+    background: var(--bg);
+    display: grid;
+    place-items: center;
+    height: 100vh; height: 100dvh;
+    overflow: hidden;
+    font-family: system-ui, -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  }
+
+  /* ---------- 원칙 1·2: 16:9 무대 ---------- */
+  .stage {
+    /* 너비·높이를 둘 다 명시: aspect-ratio 없이도 항상 16:9 */
+    width:  min(100vw, 100vh * 16 / 9);
+    height: min(100vh, 100vw * 9 / 16);
+    width:  min(100vw, 100dvh * 16 / 9);
+    height: min(100dvh, 100vw * 9 / 16);
+    --u: min(100vw / 1920, 100vh / 1080);     /* 1920px 시안의 1px */
+    position: relative;
+    overflow: hidden;                         /* 내용이 넘쳐도 무대 크기는 그대로 */
+    display: grid;
+    grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+    touch-action: pan-y pinch-zoom;
+    background: var(--paper);
+    color: var(--ink);
+  }
+  @supports (height: 100dvh) {
+    .stage { --u: min(100vw / 1920, 100dvh / 1080); }
+  }
+
+  /* ---------- 원칙 3·4: 겹치기 + 숨김 ---------- */
+  .slide {
+    grid-area: 1 / 1;
+    overflow: hidden;
+    padding: calc(84 * var(--u)) calc(112 * var(--u)) calc(72 * var(--u));
+    font-size: calc(32 * var(--u));
+    line-height: 1.5;
+    display: flex;
+    flex-direction: column;
+    background: var(--paper);                 /* 불투명: 아래 장의 잔상이 비치지 않게 */
+    word-break: keep-all;                     /* 한국어를 글자 중간이 아니라 띄어쓰기에서만 줄바꿈 */
+    overflow-wrap: break-word;                /* 띄어쓰기 없는 긴 영문·숫자만 예외로 끊음 */
+  }
+  .slide h1, .slide h2, .slide h3 { text-wrap: balance; }   /* 두 줄이 되면 줄 길이를 고르게 (미지원 브라우저는 무시) */
+  .slide p, .slide li, .slide td { text-wrap: pretty; }     /* 마지막 줄에 한 단어만 남는 것 방지 (미지원 브라우저는 무시) */
+  .nowrap { white-space: nowrap; }                          /* 전화번호·시간·날짜·단위는 한 덩어리로 */
+  .js .slide { visibility: hidden; }
+  .js .slide.is-current,
+  .js .slide.is-outgoing,
+  .js .slide.is-incoming { visibility: visible; }
+  .slide.is-outgoing { z-index: 1; }
+  .slide.is-incoming, .slide.is-current { z-index: 2; }
+  .stage[data-animating] .slide { pointer-events: none; }
+  html:not(.js) .slide:not(:first-child) { display: none; }    /* JS 꺼짐: 첫 장만 */
+
+  /* ---------- 공통 타이포 ---------- */
+  .eyebrow { color: var(--accent); font-weight: 700; font-size: calc(24 * var(--u)); letter-spacing: .04em; margin: 0 0 calc(10 * var(--u)); }
+  .slide h1 { font-size: calc(92 * var(--u)); line-height: 1.15; margin: 0 0 calc(28 * var(--u)); }
+  .slide h2 { font-size: calc(60 * var(--u)); line-height: 1.2; margin: 0 0 calc(36 * var(--u)); }
+  .slide h3 { font-size: calc(30 * var(--u)); margin: 0 0 calc(14 * var(--u)); }
+  .slide p  { margin: 0 0 calc(16 * var(--u)); }
+  .slide ul, .slide ol { margin: 0; padding-left: 1.2em; }
+  .slide li { margin: 0 0 calc(10 * var(--u)); }
+  .muted { color: var(--muted); }
+  .spacer { flex: 1; }
+  .footnote { font-size: calc(20 * var(--u)); color: var(--muted); margin: calc(16 * var(--u)) 0 0 !important; }
+  .cols { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: calc(52 * var(--u)); align-items: start; }
+  .ok { color: var(--good); font-weight: 700; }
+  .no { color: var(--bad); font-weight: 700; }
+
+  code, pre, kbd, .live { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  pre {
+    margin: 0; padding: calc(26 * var(--u)) calc(30 * var(--u));
+    background: var(--soft); border-radius: calc(14 * var(--u));
+    font-size: calc(24 * var(--u)); line-height: 1.6; white-space: pre; overflow: hidden;
+  }
+  kbd {
+    display: inline-block; min-width: 1.8em; text-align: center;
+    padding: 0 .4em; border: calc(2 * var(--u)) solid var(--line);
+    border-bottom-width: calc(4 * var(--u)); border-radius: calc(8 * var(--u));
+    font-size: .85em; background: var(--paper);
+  }
+  .live { color: var(--accent); font-weight: 700; }
+
+  .callout {
+    background: var(--accent-soft);
+    border-left: calc(8 * var(--u)) solid var(--accent);
+    border-radius: calc(14 * var(--u));
+    padding: calc(26 * var(--u)) calc(32 * var(--u));
+    font-size: calc(28 * var(--u));
+  }
+  .callout h3 { color: var(--accent); }
+  .callout ul { padding-left: 1em; }
+
+  table { border-collapse: collapse; width: 100%; font-size: calc(26 * var(--u)); }
+  th, td { text-align: left; padding: calc(12 * var(--u)) calc(18 * var(--u)); border-bottom: calc(2 * var(--u)) solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  tr.pick td { background: var(--accent-soft); font-weight: 600; }
+
+  .map { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: calc(14 * var(--u)) calc(48 * var(--u)); font-size: calc(27 * var(--u)); }
+  .map div { display: grid; grid-template-columns: calc(150 * var(--u)) 1fr calc(110 * var(--u)); gap: calc(14 * var(--u)); padding: calc(12 * var(--u)) 0; border-bottom: calc(2 * var(--u)) solid var(--line); }
+  .map b { color: var(--accent); }
+  .map span:last-child { color: var(--muted); text-align: right; }
+
+  .cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: calc(28 * var(--u)); }
+  .cards.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .card { border: calc(2 * var(--u)) solid var(--line); border-radius: calc(18 * var(--u)); padding: calc(28 * var(--u)); font-size: calc(26 * var(--u)); }
+  .card b { display: block; font-size: calc(34 * var(--u)); margin-bottom: calc(8 * var(--u)); }
+  .card.pick { border-color: var(--accent); }
+
+  .timeline { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: calc(24 * var(--u)); }
+  .timeline div { border-top: calc(8 * var(--u)) solid var(--accent); padding-top: calc(18 * var(--u)); font-size: calc(28 * var(--u)); }
+  .timeline b { display: block; font-size: calc(40 * var(--u)); }
+
+  .notes { display: none; }
+
+  /* ---------- 원칙 6: 빌드 스텝 ---------- */
+  /* 스텝 전환은 현재 장에서만 켠다. 장이 숨겨질 때 스텝이 visibility 전환 때문에
+     0.4초 더 보이는 잔상(9→10장)을 막기 위해서다. 장이 나가기 시작하면 is-current가
+     빠지므로 스텝은 슬라이드와 함께 즉시 숨겨진다. */
+  .js .slide.is-current [data-step] {
+    transition: opacity var(--step-dur) ease, transform var(--step-dur) ease,
+                visibility var(--step-dur), background-size var(--step-dur) ease;
+  }
+  .js [data-step]:not(.is-visible):not([data-effect="highlight"]):not([data-effect="strike"]) {
+    opacity: 0; visibility: hidden;
+  }
+  .js .slide.is-current [data-step].is-visible { transition-delay: calc(var(--i, 0) * var(--step-gap)); }   /* stagger: 나타날 때만 */
+  .js [data-effect="fade-up"], .js [data-effect="grow"] { display: inline-block; }
+  .js p[data-effect], .js .card[data-effect], .js .timeline > [data-effect] { display: block; }
+  .js li[data-effect] { display: list-item; }
+  .js [data-effect="fade-up"]:not(.is-visible) { transform: translateY(1em); }
+  .js [data-effect="grow"]:not(.is-visible)    { transform: scale(.85); }
+  [data-effect="highlight"] {
+    background: linear-gradient(var(--hl), var(--hl)) no-repeat 0 100% / 0% 100%;
+    color: inherit;
+  }
+  .js [data-effect="highlight"].is-visible { background-size: 100% 100%; }
+  .js [data-effect="strike"].is-visible    { text-decoration: line-through; opacity: .55; }
+
+  /* ---------- 원칙 7: 진행 막대·번호 (무대 안) ---------- */
+  .progress { position: absolute; left: 0; right: 0; bottom: 0; height: calc(8 * var(--u)); background: var(--soft); z-index: 5; }
+  .progress > span {
+    display: block; height: 100%; background: var(--accent);
+    transform: scaleX(var(--progress)); transform-origin: 0 50%;
+    transition: transform .3s ease;
+  }
+  /* 버튼·번호도 무대 안에 두고 --u로 크기 지정: 어떤 창에서도 같은 자리 */
+  .controls {
+    position: absolute; right: calc(32 * var(--u)); bottom: calc(18 * var(--u)); z-index: 5;
+    display: flex; align-items: center; gap: calc(10 * var(--u));
+    opacity: .6; transition: opacity .2s;
+  }
+  .controls:hover, .controls:focus-within { opacity: 1; }
+  .controls button {
+    width: calc(44 * var(--u)); height: calc(44 * var(--u)); padding: 0;
+    border-radius: calc(10 * var(--u)); border: calc(2 * var(--u)) solid var(--line);
+    background: var(--paper); color: var(--ink);
+    font: calc(24 * var(--u))/1 system-ui, sans-serif; cursor: pointer;
+  }
+  .controls button:focus-visible { outline: calc(3 * var(--u)) solid var(--accent); outline-offset: calc(3 * var(--u)); }
+  .counter { margin: 0 calc(6 * var(--u)); font-size: calc(22 * var(--u)); color: var(--muted); min-width: 3.5em; text-align: center; }
+
+  /* 화면 끄기 ( . 또는 B ) */
+  .blackout { position: fixed; inset: 0; background: #000; z-index: 30; display: none; }
+  html.is-black .blackout { display: block; }
+
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+  /* ---------- 원칙 9: 모션 축소 ---------- */
+  @media (prefers-reduced-motion: reduce) {
+    .js [data-step] { transform: none !important; }
+    .js .slide.is-current [data-step] {
+      transition: opacity .15s linear, visibility .15s, background-size 0s !important;
+      transition-delay: 0s !important;
+    }
+    .progress > span { transition: none; }
+  }
+
+  /* ---------- 원칙 10: 인쇄 = 1장 1페이지, 16:9 용지 ---------- */
+  @page { size: 16in 9in; margin: 0; }
+  @media print {
+    html, body { display: block; height: auto; overflow: visible; background: none; }
+    .stage { display: block; width: 16in; height: auto; overflow: visible; --u: calc(16in / 1920); }
+    .slide, .js .slide, html:not(.js) .slide:not(:first-child) {
+      display: flex; visibility: visible !important; opacity: 1 !important; transform: none !important;
+      width: 16in; height: 9in; break-after: page;
+    }
+    section.slide:last-of-type { break-after: auto; }
+    .js [data-step] { opacity: 1 !important; visibility: visible !important; transform: none !important; transition: none !important; }
+    .progress, .controls, .blackout, .sr-only { display: none !important; }   /* 마지막 빈 페이지 방지 */
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+  /* ===== 추가 레이아웃: 폰 와이어프레임·로드맵 (색은 팔레트 토큰만) ===== */
+  .phones { display: flex; justify-content: center; align-items: flex-start; gap: calc(56 * var(--u)); }
+  .phones.left { justify-content: flex-start; }
+  .phone-wrap { display: flex; flex-direction: column; align-items: center; gap: calc(14 * var(--u)); }
+  .js .phone-wrap[data-effect] { display: flex; }
+  .phone {
+    width: calc(330 * var(--u)); height: calc(600 * var(--u));
+    border: calc(10 * var(--u)) solid var(--ink); border-radius: calc(46 * var(--u));
+    background: var(--paper); padding: calc(16 * var(--u)) calc(20 * var(--u));
+    display: flex; flex-direction: column; gap: calc(12 * var(--u));
+    font-size: calc(22 * var(--u)); line-height: 1.35; overflow: hidden;
+  }
+  .sb { display: flex; justify-content: space-between; font-size: calc(18 * var(--u)); color: var(--muted); }
+  .ph-title { font-weight: 700; font-size: calc(26 * var(--u)); }
+  .ph-sub { color: var(--muted); font-size: calc(19 * var(--u)); }
+  .ph-card { background: var(--accent-soft); border-radius: calc(16 * var(--u)); padding: calc(12 * var(--u)) calc(16 * var(--u)); }
+  .ph-card.plain { background: var(--soft); }
+  .ph-card.warn { background: var(--hl); }
+  .ph-btn { display: block; text-align: center; border-radius: calc(14 * var(--u)); padding: calc(14 * var(--u)); font-weight: 700; font-size: calc(26 * var(--u)); background: var(--accent); color: var(--paper); }
+  .ph-btn.ghost { background: var(--paper); color: var(--accent); border: calc(3 * var(--u)) solid var(--accent); }
+  .ph-btn.sm { font-size: calc(21 * var(--u)); padding: calc(10 * var(--u)); }
+  .ph-tag { display: inline-block; font-size: calc(17 * var(--u)); padding: 0 calc(8 * var(--u)); border-radius: calc(8 * var(--u)); background: var(--soft); color: var(--muted); }
+  .ph-tag.ad { background: var(--hl); color: var(--ink); font-weight: 700; }
+  .ph-row { display: flex; justify-content: space-between; align-items: center; gap: calc(10 * var(--u)); border-bottom: calc(2 * var(--u)) solid var(--line); padding: calc(6 * var(--u)) 0; }
+  .ph-warn { color: var(--bad); font-weight: 700; }
+  .ph-ok { color: var(--good); font-weight: 700; }
+  .ph-acc { color: var(--accent); font-weight: 700; }
+  .ph-big { font-size: calc(36 * var(--u)); font-weight: 800; color: var(--accent); text-align: center; line-height: 1.25; }
+  .ph-icon { width: calc(96 * var(--u)); height: calc(96 * var(--u)); border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-size: calc(36 * var(--u)); font-weight: 800; margin: calc(8 * var(--u)) auto 0; }
+  .ph-tabs { display: flex; gap: calc(6 * var(--u)); font-size: calc(19 * var(--u)); }
+  .ph-tabs span { flex: 1; text-align: center; padding: calc(6 * var(--u)) 0; border-bottom: calc(3 * var(--u)) solid var(--line); color: var(--muted); }
+  .ph-tabs span.on { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+  .bubble { border-radius: calc(14 * var(--u)); padding: calc(8 * var(--u)) calc(12 * var(--u)); max-width: 88%; background: var(--accent-soft); }
+  .bubble.me { align-self: flex-end; background: var(--soft); }
+  .ph-fill { flex: 1; }
+  .week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: calc(6 * var(--u)); text-align: center; font-size: calc(17 * var(--u)); }
+  .week i { font-style: normal; display: block; border-radius: calc(8 * var(--u)); padding: calc(4 * var(--u)) 0; background: var(--accent-soft); color: var(--good); font-weight: 700; }
+  .week i.miss { background: var(--hl); color: var(--bad); }
+  .cap { font-size: calc(24 * var(--u)); text-align: center; max-width: calc(340 * var(--u)); line-height: 1.35; }
+  .cap b { color: var(--accent); }
+  .side { flex: 1; max-width: calc(620 * var(--u)); }
+  .script { display: grid; gap: calc(12 * var(--u)); font-size: calc(27 * var(--u)); }
+  .script div { display: grid; grid-template-columns: calc(110 * var(--u)) minmax(0, 1fr) calc(170 * var(--u)); gap: calc(14 * var(--u)); padding-bottom: calc(10 * var(--u)); border-bottom: calc(2 * var(--u)) solid var(--line); }
+  .script b { color: var(--accent); }
+  .script span:last-child { color: var(--good); font-weight: 700; text-align: right; }
+  .road { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: calc(24 * var(--u)); }
+  .road > div { border-top: calc(8 * var(--u)) solid var(--accent); padding-top: calc(18 * var(--u)); font-size: calc(30 * var(--u)); line-height: 1.45; }
+  .road > div > b { display: block; font-size: calc(44 * var(--u)); }
+  .road .when { color: var(--muted); font-size: calc(26 * var(--u)); display: block; margin-bottom: calc(22 * var(--u)); }
+  .road .trk { margin: 0 0 calc(30 * var(--u)); }
+  .road .trk em { font-style: normal; display: inline-block; font-size: calc(23 * var(--u)); font-weight: 700; color: var(--paper); background: var(--accent); border-radius: calc(8 * var(--u)); padding: 0 calc(8 * var(--u)); margin-bottom: calc(4 * var(--u)); }
+  .road .trk.tele em { background: var(--accent-2); }
+  .road .now { border-top-color: var(--accent-2); }
+  .srcs { font-size: calc(21 * var(--u)); line-height: 1.45; }
+  .srcs li { word-break: break-all; margin-bottom: calc(6 * var(--u)); }
+  /* ===== v5 추가: 시연 흐름·와이어프레임 부품 ===== */
+  .flow { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: calc(16 * var(--u)); }
+  .flow > div { border: calc(2 * var(--u)) solid var(--line); border-radius: calc(16 * var(--u)); padding: calc(16 * var(--u)); font-size: calc(24 * var(--u)); line-height: 1.35; font-weight: 700; }
+  .flow > div b { display: block; color: var(--accent); font-size: calc(20 * var(--u)); margin-bottom: calc(6 * var(--u)); }
+  .flow > div.new { border-color: var(--accent); background: var(--accent-soft); }
+  .rules { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: calc(40 * var(--u)); font-size: calc(26 * var(--u)); }
+  .rules h3 { margin-bottom: calc(8 * var(--u)); }
+  .rules p { margin: 0 0 calc(6 * var(--u)); color: var(--muted); }
+  .g2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: calc(10 * var(--u)); }
+  .g3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: calc(8 * var(--u)); }
+  .opt { border: calc(2 * var(--u)) solid var(--line); border-radius: calc(12 * var(--u)); padding: calc(10 * var(--u)); text-align: center; font-weight: 700; }
+  .opt.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+  .opt.row { display: flex; justify-content: space-between; text-align: left; padding: calc(9 * var(--u)) calc(14 * var(--u)); }
+  .opt.dash { border-style: dashed; font-weight: 600; }
+  .dots { display: flex; gap: calc(6 * var(--u)); justify-content: center; }
+  .dots i { width: calc(30 * var(--u)); height: calc(6 * var(--u)); border-radius: calc(3 * var(--u)); background: var(--line); }
+  .dots i.on { background: var(--accent); }
+  .fig { display: block; margin: 0 auto; width: calc(120 * var(--u)); height: calc(190 * var(--u)); }
+  .chip { display: inline-block; padding: 0 calc(10 * var(--u)); border-radius: calc(20 * var(--u)); font-size: calc(17 * var(--u)); font-weight: 700; }
+  .k1 { background: var(--accent-soft); color: var(--accent); }
+  .k2 { background: var(--hl); color: var(--accent-2); }
+  .k3 { background: var(--soft); color: var(--good); }
+  .kb { background: var(--ink); color: var(--paper); }
+  .tl { display: grid; gap: calc(8 * var(--u)); }
+  .tl > div { display: grid; grid-template-columns: calc(62 * var(--u)) minmax(0, 1fr); gap: calc(8 * var(--u)); align-items: start; font-size: calc(19 * var(--u)); }
+  .tl > div > span:first-child { font-weight: 700; padding-top: calc(6 * var(--u)); }
+  .tc { border: calc(2 * var(--u)) solid var(--line); border-radius: calc(12 * var(--u)); padding: calc(6 * var(--u)) calc(10 * var(--u)); }
+  .tc.c1 { border-color: var(--accent); } .tc.c2 { border-color: var(--accent-2); } .tc.c3 { border-color: var(--good); } .tc.cb { border-color: var(--ink); border-width: calc(3 * var(--u)); }
+  .tc small { display: block; font-size: calc(16 * var(--u)); color: var(--muted); }
+  .phone.dark { background: var(--ink); color: var(--paper); }
+  .phone.dark .sb, .phone.dark .ph-sub { color: var(--line); }
+  .vf { flex: 1; border: calc(3 * var(--u)) solid var(--paper); border-radius: calc(14 * var(--u)); display: grid; place-items: center; position: relative; }
+  .vf .paper { width: 70%; height: 72%; background: var(--paper); border-radius: calc(6 * var(--u)); transform: rotate(-3deg); }
+  .vf .ok { position: absolute; bottom: calc(-16 * var(--u)); background: var(--good); color: var(--paper); border-radius: calc(16 * var(--u)); padding: 0 calc(12 * var(--u)); font-size: calc(18 * var(--u)); }
+  .shutter { width: calc(74 * var(--u)); height: calc(74 * var(--u)); border-radius: 50%; border: calc(6 * var(--u)) solid var(--paper); margin: calc(8 * var(--u)) auto 0; background: var(--line); }
+  .med { border: calc(2 * var(--u)) solid var(--ink); border-radius: calc(14 * var(--u)); padding: calc(8 * var(--u)) calc(12 * var(--u)); }
+  .med b { font-size: calc(23 * var(--u)); display: block; }
+  .med small { display: block; color: var(--muted); font-size: calc(16 * var(--u)); }
+  .bars { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: calc(5 * var(--u)); align-items: end; height: calc(34 * var(--u)); }
+  .bars i { display: block; height: 40%; border-radius: calc(4 * var(--u)); background: var(--line); }
+  .bars i.m { height: 70%; background: var(--accent-soft); } .bars i.h { height: 100%; background: var(--accent); } .bars i.z { height: 0; }
+  .tablet { width: calc(1420 * var(--u)); height: calc(600 * var(--u)); border: calc(10 * var(--u)) solid var(--ink); border-radius: calc(36 * var(--u)); display: grid; grid-template-columns: calc(420 * var(--u)) minmax(0, 1fr); overflow: hidden; font-size: calc(21 * var(--u)); line-height: 1.35; margin: 0 auto; }
+  .tablet .lst { border-right: calc(2 * var(--u)) solid var(--line); padding: calc(16 * var(--u)); display: flex; flex-direction: column; gap: calc(4 * var(--u)); background: var(--paper); }
+  .tablet .det { padding: calc(18 * var(--u)) calc(22 * var(--u)); background: var(--soft); display: grid; gap: calc(12 * var(--u)); align-content: start; }
+  .ti { padding: calc(8 * var(--u)) calc(10 * var(--u)); border-bottom: calc(2 * var(--u)) solid var(--line); }
+  .ti.sel { background: var(--accent-soft); border-left: calc(6 * var(--u)) solid var(--accent); }
+  .ti small { float: right; color: var(--muted); font-size: calc(17 * var(--u)); }
+  .box { background: var(--paper); border: calc(2 * var(--u)) solid var(--line); border-radius: calc(12 * var(--u)); padding: calc(10 * var(--u)) calc(14 * var(--u)); }
+  .box h4 { margin: 0 0 calc(6 * var(--u)); font-size: calc(19 * var(--u)); color: var(--muted); }
+  .m3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: calc(10 * var(--u)); }
+  .d2 { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: calc(12 * var(--u)); }
+  .phone.sm { width: calc(300 * var(--u)); }
+  .slide table.tight td, .slide table.tight th { padding: calc(9 * var(--u)) calc(16 * var(--u)); }
+  .js .tablet[data-effect] { display: grid; }
+  .qr { width: calc(150 * var(--u)); height: calc(150 * var(--u)); margin: calc(4 * var(--u)) auto; border: calc(8 * var(--u)) solid var(--ink); background: repeating-conic-gradient(var(--ink) 0 25%, var(--paper) 0 50%) 0 0 / calc(22 * var(--u)) calc(22 * var(--u)); }
+  .road .trk.net em { background: var(--good); }
+  .road > div { font-size: calc(26 * var(--u)); }
+  .road .trk { margin-bottom: calc(18 * var(--u)); }
+</style>
+</head>
+<body>
+<main class="deck" aria-roledescription="발표 자료" aria-label="진료 한 장 발표자료 v5">
+  <div class="stage" id="stage">
+
+    <!-- 1 표지 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t1">
+      <p class="eyebrow">2026 AI 활용 전국 대학생 창업 해커톤 · 주제 3 고령화·돌봄·의료·복지</p>
+      <h1 id="t1">진료 한 장</h1>
+      <p class="muted">의사는 줄고 병원은 먼 강원에서, 어르신이 그때그때 남긴 기록을<br>진료 한 장으로 정리해 가족과 동네 진료까지 잇는 AI 서비스</p>
+      <div class="spacer"></div>
+      <p class="footnote">발표자료 v5 · 2026-11-17 · 화면과 인물은 설명용 가상 예시 · AI는 정리·요약·변환만 하며 진단하지 않습니다</p>
+    </section>
+
+    <!-- 2 한눈에 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t2" data-transition="fade">
+      <p class="eyebrow">한눈에 보기</p>
+      <h2 id="t2">기록은 무료로 쉽게, 매일 챙김은 가족이</h2>
+      <table class="tight">
+        <thead><tr><th>구분</th><th>기능</th><th>v5 결정</th></tr></thead>
+        <tbody>
+          <tr><td>핵심 (v3)</td><td>아픈 곳 기록 → 진료 한 장 → 쉬운 말 카드 → 가족·담당자 공유</td><td>무료</td></tr>
+          <tr><td>추가</td><td>하루 전화 · 복약 알람 (드실 때까지 재알림, 기준 넘으면 가족)</td><td>유료 메인</td></tr>
+          <tr><td>추가</td><td>건강 마이데이터 불러오기</td><td>무료, 단계적 도입</td></tr>
+          <tr class="pick"><td>추가</td><td>큰 병원 기록 찍기 → 클라우드 → 연동 의원이 진료 때 열람</td><td>무료 (어르신·의원)</td></tr>
+          <tr><td>유지</td><td>병원 광고</td><td class="ok">정액 · 비맞춤 · 기록과 분리</td></tr>
+          <tr><td>미래</td><td>비대면 진료 연계 (수수료 없음)</td><td>로드맵</td></tr>
+        </tbody>
+      </table>
+      <div class="spacer"></div>
+      <p class="footnote">지키는 원칙: 진단하지 않음 · 공유는 어르신이 고른 사람에게만 · 쉬운 말 옆에는 항상 원문</p>
+    </section>
+
+    <!-- 3 시연 흐름 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t3">
+      <p class="eyebrow">시연 흐름 · 어머니 김순자(78) · 아들 민수 · 면 담당자</p>
+      <h2 id="t3">무릎이 아픈 날부터 담당자 방문까지</h2>
+      <div class="flow">
+        <div data-step="1" data-effect="fade-up"><b>① 하루 안부</b>"조금 아파요"</div>
+        <div data-step="1" data-effect="fade-up"><b>② 아픈 곳</b>그림 3번 누르면 끝</div>
+        <div data-step="1" data-effect="fade-up"><b>③ 아들</b>진료 전날 알림</div>
+        <div data-step="1" data-effect="fade-up"><b>④ 진료실</b>한 장 보여 주기</div>
+        <div data-step="1" data-effect="fade-up" class="new"><b>⑤ 처방전</b>쉬운 말 카드</div>
+        <div data-step="1" data-effect="fade-up"><b>⑥ 내 기록</b>병원 두 곳 약이 한 줄에</div>
+        <div data-step="1" data-effect="fade-up"><b>⑦ 담당자</b>방문 전 한 장</div>
+      </div>
+      <div class="spacer"></div>
+      <div class="rules">
+        <div><h3>사용자와 기기</h3><p>어르신 · 휴대폰·태블릿</p><p>가족 · 휴대폰</p><p>담당자 · 태블릿 가로</p></div>
+        <div><h3>어르신 화면 규칙</h3><p>한 화면에 할 일 하나</p><p>큰 버튼 3개까지</p><p>모든 카드에 읽어 주기</p></div>
+        <div><h3>지키는 원칙</h3><p>진단하지 않음</p><p>어르신이 고른 사람만 봄</p><p>"기록이 바뀌었다"만 표시</p></div>
+      </div>
+      <aside class="notes">⑤ 쉬운 말 카드가 시연 하이라이트입니다. 실제 Claude 호출로 처방전 사진을 읽습니다.</aside>
+    </section>
+
+    <!-- 4 홈 + 하루 안부 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t4">
+      <p class="eyebrow">시연 ① 어르신 화면</p>
+      <h2 id="t4">글자 입력 없이, 누르거나 말하면 끝</h2>
+      <div class="phones left">
+        <div class="phone-wrap" data-step data-effect="fade-up">
+          <div class="phone">
+            <div class="sb"><span>11월 17일 월요일</span><span></span></div>
+            <div class="ph-title" style="font-size:calc(30 * var(--u))">김순자 님,<br>오늘은 어떠세요?</div>
+            <div class="ph-card"><b>🔈 오늘 안부 듣기</b><br><span class="ph-sub">눌러서 대답만 하면 돼요</span></div>
+            <div class="opt row"><span>아픈 곳 기록</span><span class="ph-sub">그림 3번</span></div>
+            <div class="opt row"><span>약·처방전 찍기</span><span class="ph-sub">쉬운 말로</span></div>
+            <span class="ph-btn" style="background:var(--ink)">내 진료 한 장</span>
+            <div class="ph-fill"></div>
+            <div class="ph-row" style="border:0"><span><span class="ph-sub">다음 진료</span><br><b>11/20 (목) · ○○정형외과</b></span></div>
+          </div>
+          <p class="cap"><b>홈</b> 할 일 네 가지</p>
+        </div>
+        <div class="phone-wrap" data-step data-effect="fade-up">
+          <div class="phone">
+            <div class="sb"><span>오늘 안부</span><span>오전 9:00</span></div>
+            <div class="ph-icon">🔈</div>
+            <div class="ph-big" style="color:var(--ink);font-size:calc(30 * var(--u))">오늘 무릎은<br>좀 어떠세요?</div>
+            <div class="opt">괜찮아요</div>
+            <div class="opt on">조금 아파요</div>
+            <div class="opt">많이 아파요</div>
+            <div class="ph-fill"></div>
+            <span class="ph-btn" style="background:var(--ink)">🎙 말로 대답하기</span>
+          </div>
+          <p class="cap"><b>하루 안부</b> "아파요" → 기록으로</p>
+        </div>
+        <div class="callout side">
+          <h3>어르신 화면 규칙</h3>
+          <ul>
+            <li>한 화면에 할 일 하나</li>
+            <li>큰 버튼 3개까지</li>
+            <li>모든 카드 읽어 주기</li>
+            <li>쉬운 말 옆엔 원문</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5 아픈 곳 기록 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t5">
+      <p class="eyebrow">시연 ② 아픈 곳 기록</p>
+      <h2 id="t5">어디가 → 얼마나 → 언제, 세 번이면 끝</h2>
+      <div class="phones">
+        <div class="phone-wrap" data-step data-effect="fade-up">
+          <div class="phone">
+            <div class="dots"><i class="on"></i><i></i><i></i></div>
+            <div class="ph-title">어디가 아프세요?</div>
+            <svg class="fig" viewBox="0 0 120 190" aria-hidden="true">
+              <circle cx="60" cy="20" r="16" style="fill:var(--soft);stroke:var(--muted);stroke-width:2"/>
+              <rect x="38" y="40" width="44" height="58" rx="10" style="fill:var(--soft);stroke:var(--muted);stroke-width:2"/>
+              <rect x="20" y="42" width="14" height="52" rx="7" style="fill:var(--soft);stroke:var(--muted);stroke-width:2"/>
+              <rect x="86" y="42" width="14" height="52" rx="7" style="fill:var(--soft);stroke:var(--muted);stroke-width:2"/>
+              <rect x="40" y="102" width="17" height="82" rx="8" style="fill:var(--soft);stroke:var(--muted);stroke-width:2"/>
+              <rect x="63" y="102" width="17" height="82" rx="8" style="fill:var(--soft);stroke:var(--muted);stroke-width:2"/>
+              <circle cx="71" cy="150" r="12" style="fill:var(--accent-soft);stroke:var(--accent);stroke-width:3"/>
+            </svg>
+            <div class="g3"><span class="opt">머리</span><span class="opt">가슴</span><span class="opt">배</span><span class="opt">허리</span><span class="opt">팔</span><span class="opt on">무릎</span></div>
+            <div class="ph-fill"></div>
+            <div class="ph-sub" style="text-align:center">그림을 직접 눌러도 돼요</div>
+          </div>
+          <p class="cap"><b>1</b> 어디가</p>
+        </div>
+        <div class="phone-wrap" data-step data-effect="fade-up">
+          <div class="phone">
+            <div class="dots"><i class="on"></i><i class="on"></i><i></i></div>
+            <div class="ph-sub ph-acc">무릎·다리</div>
+            <div class="ph-title">얼마나 아프세요?</div>
+            <div class="opt row"><span>🙂 조금 불편해요</span><span>1</span></div>
+            <div class="opt row"><span>😐 신경 쓰여요</span><span>2</span></div>
+            <div class="opt row on"><span>😟 꽤 아파요</span><span>3</span></div>
+            <div class="opt row"><span>😣 많이 아파요</span><span>4</span></div>
+            <div class="opt row"><span>😫 참기 힘들어요</span><span>5</span></div>
+          </div>
+          <p class="cap"><b>2</b> 얼마나</p>
+        </div>
+        <div class="phone-wrap" data-step data-effect="fade-up">
+          <div class="phone">
+            <div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i></div>
+            <div class="ph-sub ph-acc">무릎·다리 · 꽤 아파요</div>
+            <div class="ph-title">언제 아프세요?</div>
+            <div class="g2"><span class="opt">아침에</span><span class="opt">밤에</span><span class="opt on">걸을 때</span><span class="opt">계단</span></div>
+            <div class="opt dash">🎙 말로 덧붙이기</div>
+            <div class="ph-card plain">"오른쪽 무릎이 시큰거려"<br><span class="ph-sub">말한 내용이 글로 적혀요</span></div>
+            <div class="ph-fill"></div>
+            <span class="ph-btn">저장하기</span>
+            <div class="ph-sub" style="text-align:center">10월 3일부터 5번째 기록이에요</div>
+          </div>
+          <p class="cap"><b>3</b> 언제 + 말로 덧붙이기</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6 처방전 → 쉬운 말 카드 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t6">
+      <p class="eyebrow">시연 ③ 시연 하이라이트</p>
+      <h2 id="t6">처방전 사진 한 장이 쉬운 말 카드로</h2>
+      <div class="phones left">
+        <div class="phone-wrap" data-step data-effect="fade-up">
+          <div class="phone dark">
+            <div class="sb"><span>✕</span><span>처방전 · 검사 결과지</span></div>
+            <div class="ph-title" style="text-align:center">종이가 네모 안에<br>들어오게 맞춰 주세요</div>
+            <div class="vf"><div class="paper"></div><span class="ok">잘 보여요</span></div>
+            <div class="shutter"></div>
+            <div class="ph-sub" style="text-align:center">사진은 내 휴대폰에만 남아요</div>
+          </div>
+          <p class="cap"><b>1</b> 찍기</p>
+        </div>
+        <div class="phone-wrap" data-step data-effect="fade-up">
+          <div class="phone">
+            <div class="sb"><span class="ph-acc" style="color:var(--accent-2)">● ○○정형외과 · 11/17</span><span class="ph-acc">🔈 읽어 주기</span></div>
+            <div class="med"><b>무릎 통증과 붓기를 줄이는 약</b>하루 <b style="display:inline;font-size:inherit">2번</b> · 아침, 저녁 · 밥 먹고<small>원문: 셀레콕시브 200mg 1C bid pc</small></div>
+            <div class="med"><b>속을 편하게 해 주는 약</b>위의 약과 같이 드세요<small>원문: 레바미피드 100mg 1T bid pc</small></div>
+            <div class="ph-card plain"><b>다음에 할 일 3가지</b><br>1 약은 꼭 밥 먹고<br>2 속이 쓰리면 기록<br>3 12월 1일 다시 오기</div>
+            <div class="ph-fill"></div>
+            <div class="g2"><span class="ph-btn ghost sm">원문 보기</span><span class="ph-btn sm" style="background:var(--ink)">기록에 넣기</span></div>
+          </div>
+          <p class="cap"><b>2</b> 쉬운 말 카드</p>
+        </div>
+        <div class="callout side" data-step>
+          <h3>AI가 하는 일 (실제 작동)</h3>
+          <ul>
+            <li>사진 속 글자 읽기</li>
+            <li>약 이름 → 쉬운 말</li>
+            <li>"다음에 할 일" 3가지</li>
+          </ul>
+          <p style="margin-top:calc(12 * var(--u))">원문을 항상 함께 · 못 읽은 글자는 원문 그대로 · "진단이 아니에요" 표시</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7 내 기록 + 진료 한 장 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t7">
+      <p class="eyebrow">시연 ④ 내 기록 → 진료 한 장</p>
+      <h2 id="t7">병원 두 곳의 약이 한 장에 모입니다</h2>
+      <div class="phones left">
+        <div class="phone-wrap" data-step data-effect="fade-up">
+          <div class="phone">
+            <div class="ph-title">내 기록</div>
+            <div><span class="chip k1">○○내과</span> <span class="chip k2">○○정형외과</span> <span class="chip k3">보건진료소</span></div>
+            <div class="ph-card"><span class="ph-sub">병원 2곳의 약을 모으면</span><br><b>지금 약 4가지 드세요</b></div>
+            <div class="tl">
+              <div><span>11.17</span><div class="tc c2"><small>정형외과 처방 · 방금</small>무릎 통증약 · 속 편한 약</div></div>
+              <div><span>11.14</span><div class="tc"><small>내가 남긴 기록</small>무릎 · 꽤 아파요 · 걸을 때</div></div>
+              <div><span>11.10</span><div class="tc c1"><small>내과 처방</small>혈압약 · 당뇨약</div></div>
+            </div>
+            <div class="ph-fill"></div>
+            <span class="ph-btn sm">진료 한 장 만들기</span>
+          </div>
+          <p class="cap"><b>1</b> 타임테이블</p>
+        </div>
+        <div class="phone-wrap" data-step data-effect="fade-up">
+          <div class="phone">
+            <div class="ph-row"><span class="ph-title">진료 한 장</span><span class="ph-sub">11.20 · 정형외과</span></div>
+            <div class="ph-acc" style="font-size:calc(19 * var(--u))">의사에게 말할 것</div>
+            <div style="font-weight:700">1. 오른쪽 무릎, 10/3부터 5번<br>2. 걸을 때·계단에서 더 아파요<br>3. 다른 병원 약 2가지 같이 먹어요</div>
+            <div class="ph-sub">증상 기록 · 최근 7주</div>
+            <div class="bars"><i></i><i class="z"></i><i class="m"></i><i></i><i class="z"></i><i class="m"></i><i class="h"></i></div>
+            <div class="ph-sub">먹는 약 · 병원 2곳</div>
+            <div class="ph-row"><span>암로디핀 · 1일 1회</span><span class="ph-acc">내과</span></div>
+            <div class="ph-row"><span>셀레콕시브 · 1일 2회</span><span class="ph-acc" style="color:var(--accent-2)">정형외과</span></div>
+            <div class="ph-fill"></div>
+            <div class="g2"><span class="ph-btn ghost sm">크게 보기</span><span class="ph-btn sm" style="background:var(--ink)">종이로 뽑기</span></div>
+          </div>
+          <p class="cap"><b>2</b> 진료실에서 보여 주기</p>
+        </div>
+        <div class="callout side">
+          <h3>진료 한 장</h3>
+          <p>"언제부터, 몇 번, 어떤 때"를 <b>기록 그대로</b> 정리합니다.</p>
+          <p><b>종이로 뽑기</b> → 시스템이 없는 동네 의원에서도 바로 씁니다.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 8 가족 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t8">
+      <p class="eyebrow">시연 ⑤ 가족 화면 · 아들 민수</p>
+      <h2 id="t8">멀리 사는 아들도 진료 전후를 압니다</h2>
+      <div class="phones">
+        <div class="phone-wrap" data-step data-effect="fade-up">
+          <div class="phone">
+            <div class="sb"><span>진료 한 장 · 어머니 알림</span><span>11/19 19:00</span></div>
+            <div class="ph-card plain"><b>내일(11/20) 오전 10시</b><br>어머니 ○○정형외과 진료가 있어요.</div>
+            <div class="ph-card"><span class="ph-acc" style="font-size:calc(18 * var(--u))">의사에게 말할 것</span><br>1. 오른쪽 무릎, 10/3부터 5번<br>2. 걸을 때·계단에서 더 아픔<br>3. 내과 약 2가지 같이 드심</div>
+            <div class="ph-sub">전화로 한 번 챙겨 드리면 좋아요</div>
+            <div class="ph-fill"></div>
+            <span class="ph-btn" style="background:var(--ink)">어머니께 전화하기</span>
+            <span class="ph-btn ghost sm">진료 한 장 보기</span>
+          </div>
+          <p class="cap"><b>1</b> 진료 전날 알림</p>
+        </div>
+        <div class="phone-wrap" data-step data-effect="fade-up">
+          <div class="phone">
+            <div class="ph-sub" style="color:var(--accent-2)">○○정형외과 · 11월 20일</div>
+            <div class="ph-title">어머니 진료가 끝났어요</div>
+            <div class="box"><h4>새로 받은 약</h4><b>무릎 통증과 붓기를 줄이는 약</b><br><span class="ph-sub">하루 2번 · 밥 먹고</span></div>
+            <div class="ph-card"><b>함께 챙길 일</b><br>1. 약은 꼭 밥 먹고<br>2. 속이 쓰리면 기록 부탁<br>3. 12월 1일 다시 진료</div>
+            <div class="ph-card plain ph-sub">약이 모두 4가지 · 약사에게 함께 확인 권함</div>
+            <div class="ph-fill"></div>
+            <span class="ph-btn ghost sm">처방전 원문 보기</span>
+          </div>
+          <p class="cap"><b>2</b> 진료 후 카드</p>
+        </div>
+        <div class="phone-wrap" data-step data-effect="fade-up">
+          <div class="phone">
+            <div class="ph-icon">민</div>
+            <div class="ph-title" style="text-align:center">어머니 김순자 님의<br>진료 한 장에 초대받았어요</div>
+            <div class="ph-sub" style="text-align:center">○○면 통합돌봄 박 담당자님이 보냈어요</div>
+            <div class="box"><h4>어머니가 허락한 것</h4><span class="ph-ok">✓</span> 진료 전날 알림<br><span class="ph-ok">✓</span> 쉬운 말 카드<br><span class="ph-sub">✕ 매일의 증상 기록 (허락 안 함)</span></div>
+            <div class="ph-fill"></div>
+            <div class="ph-sub">어머니가 언제든 연결을 끌 수 있어요</div>
+            <span class="ph-btn">연결하기</span>
+          </div>
+          <p class="cap"><b>3</b> 초대와 허락 범위</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 9 담당자 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t9">
+      <p class="eyebrow">시연 ⑥ 통합돌봄 담당자 · 태블릿</p>
+      <h2 id="t9">방문 전, 바뀐 기록만 한 장으로</h2>
+      <div class="tablet" data-step data-effect="fade-up">
+        <div class="lst">
+          <div class="ph-row" style="border:0"><b style="font-size:calc(26 * var(--u))">담당 어르신</b><span class="ph-sub">○○면 · 24명</span></div>
+          <div><span class="chip kb">기록 바뀜 5</span> <span class="chip k3">진료 예정 3</span></div>
+          <div class="ti sel"><b>김순자 · 78</b><small>방문 11/24</small><br><span class="chip kb">새 처방</span> <span class="chip k1">약 2→4가지</span></div>
+          <div class="ti"><b>이○○ · 82</b><small>방문 11/25</small><br><span class="chip k1">새 증상 기록 3번</span></div>
+          <div class="ti"><b>최○○ · 75</b><small>방문 11/26</small><br><span class="chip k3">진료 예정 11/21</span></div>
+          <div class="ti"><b>정○○ · 80</b><small>방문 11/27</small><br><span class="chip k2">약 11가지</span></div>
+          <div class="ti"><b class="ph-sub">한○○ · 77</b><small>방문 11/28</small><br><span class="ph-sub">바뀐 기록 없음</span></div>
+        </div>
+        <div class="det">
+          <div class="ph-row" style="border:0"><b style="font-size:calc(28 * var(--u))">김순자 님 · 78세</b><span><span class="chip k1">아들에게 연락</span> <span class="chip kb">방문 메모 쓰기</span></span></div>
+          <div class="m3">
+            <div class="box"><h4 style="color:var(--accent-2)">새 처방 · 11/20</h4><b>정형외과 약 2가지</b></div>
+            <div class="box"><h4 class="ph-acc">증상 기록</h4><b>무릎 3번 (정도 2~3)</b></div>
+            <div class="box"><h4>먹는 약</h4><b>2가지 → 4가지</b></div>
+          </div>
+          <div class="d2">
+            <div class="box"><h4>진료 한 장 (11/20 진료 때)</h4>1. 오른쪽 무릎, 10/3부터 5번<br>2. 걸을 때·계단에서 더 아픔<br>3. 내과 약 2가지 같이 드심<h4 style="margin-top:calc(10 * var(--u))">방문 때 확인해 볼 것</h4>· 새 약을 밥 먹고 드시는지<br>· 12월 1일 재진 기억하시는지</div>
+            <div class="box"><h4>타임테이블</h4>11.20 <span style="color:var(--accent-2)">●</span> 정형외과 처방<br>11.14 <span class="ph-acc">●</span> 무릎 3 · 걸을 때<br>11.12 <span class="ph-acc">●</span> 무릎 2 · 계단<br>11.10 <span class="ph-acc">●</span> 내과 처방<br>11.02 <span class="ph-ok">●</span> 보건진료소</div>
+          </div>
+          <div class="ph-sub">기록이 바뀐 것만 보여 줍니다. 상태를 판단하지 않습니다.</div>
+        </div>
+      </div>
+      <aside class="notes">정○○ 님처럼 약이 11가지인 경우 건보공단 다제약물 관리사업을 안내할 수 있습니다(판단이 아니라 사업 안내).</aside>
+    </section>
+
+    <!-- 10 복약 알람 흐름 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t10">
+      <p class="eyebrow">신규 ① 복약 알람 (유료)</p>
+      <h2 id="t10">드실 때까지 다시 울리고, 넘으면 가족에게</h2>
+      <div class="timeline">
+        <div data-step data-effect="fade-up"><b>정시</b>화면 알림 + 음성<br>"아침 혈압약<br>드실 시간이에요"</div>
+        <div data-step data-effect="fade-up"><b>+10·20·30분</b>"먹었어요"를 누를 때까지 재알림 (최대 3회)</div>
+        <div data-step data-effect="fade-up"><b>그래도 없음</b>하루 전화로 한 번 더 여쭘</div>
+        <div data-step data-effect="fade-up"><b>기준 초과</b>가족에게 알림<br>"혈압약 2회 연속 확인 안 됨"</div>
+      </div>
+      <div class="spacer"></div>
+      <div class="callout" data-step>앱은 <b>"먹었어요" 확인 여부만</b> 압니다 → "안 드셨다"가 아니라 <b>"확인 안 됨"</b>으로만 표시합니다.</div>
+      <p class="footnote">간격·횟수는 예시 · 약별 알림 기준은 가족이 설정 (앱이 정하면 의학적 판단으로 보일 수 있음)</p>
+    </section>
+
+    <!-- 11 복약 화면 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t11">
+      <p class="eyebrow">신규 ① 복약 알람 · 어르신과 가족 화면</p>
+      <h2 id="t11">어르신은 버튼 하나, 가족은 사실만</h2>
+      <div class="phones">
+        <div class="phone-wrap" data-step data-effect="fade-up">
+          <div class="phone">
+            <div class="sb"><span>08:00</span><span>진료 한 장</span></div>
+            <div class="ph-icon">약</div>
+            <div class="ph-big">아침 약<br>드실 시간이에요</div>
+            <div class="ph-card"><b>혈압약 1알</b><br><span class="ph-sub">식후 · 하얀 동그란 알약</span></div>
+            <div class="ph-fill"></div>
+            <span class="ph-btn">먹었어요</span>
+            <span class="ph-btn ghost sm">10분 뒤에 다시</span>
+          </div>
+          <p class="cap"><b>1</b> 정시 알림</p>
+        </div>
+        <div class="phone-wrap" data-step data-effect="fade-up">
+          <div class="phone">
+            <div class="sb"><span>08:30</span><span>진료 한 장</span></div>
+            <div class="ph-card warn"><b>아직 확인 안 됐어요</b><br><span class="ph-sub">재알림 3번째 (마지막)</span></div>
+            <div class="ph-big">혈압약<br>드셨나요?</div>
+            <div class="ph-card plain">확인이 없으면<br><b>9시에 전화</b>로 여쭤볼게요</div>
+            <div class="ph-fill"></div>
+            <span class="ph-btn">먹었어요</span>
+            <span class="ph-btn ghost sm">약이 없어요</span>
+          </div>
+          <p class="cap"><b>2</b> 재알림 → 전화</p>
+        </div>
+        <div class="phone-wrap" data-step data-effect="fade-up">
+          <div class="phone">
+            <div class="sb"><span>가족 · 설정</span><span>어머니</span></div>
+            <div class="ph-title">약별 알림 기준</div>
+            <div class="ph-sub">가족이 정합니다</div>
+            <div class="ph-row"><span><b>혈압약</b><br><span class="ph-sub">매일 아침</span></span><span class="ph-acc">2회 연속<br>미확인 시</span></div>
+            <div class="ph-row"><span><b>당뇨약</b><br><span class="ph-sub">아침·저녁</span></span><span class="ph-acc">1회<br>미확인 시</span></div>
+            <div class="ph-row"><span><b>관절약</b><br><span class="ph-sub">필요할 때</span></span><span class="ph-sub">알림 안 함</span></div>
+            <div class="ph-fill"></div>
+            <div class="ph-card plain ph-sub">기준은 약사·의사와 상의해 정하세요. 앱은 판단하지 않습니다.</div>
+          </div>
+          <p class="cap"><b>3</b> 가족이 기준 설정</p>
+        </div>
+        <div class="phone-wrap" data-step data-effect="fade-up">
+          <div class="phone">
+            <div class="sb"><span>11/17 09:05</span><span>가족 알림</span></div>
+            <div class="ph-card warn"><b>어머니 · 혈압약</b><br><span class="ph-warn">2회 연속 확인 안 됨</span><br><span class="ph-sub">11/16 저녁 · 11/17 아침</span></div>
+            <div class="ph-sub">이번 주 혈압약 확인</div>
+            <div class="week"><span>월<i>✓</i></span><span>화<i>✓</i></span><span>수<i>✓</i></span><span>목<i>✓</i></span><span>금<i>✓</i></span><span>토<i class="miss">−</i></span><span>일<i class="miss">−</i></span></div>
+            <div class="ph-fill"></div>
+            <span class="ph-btn">어머니께 전화</span>
+            <span class="ph-btn ghost sm">하루 전화로 다시 여쭙기</span>
+          </div>
+          <p class="cap"><b>4</b> 기준 넘으면 가족</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 12 마이데이터 타당성 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t12" data-transition="fade">
+      <p class="eyebrow">신규 ② 건강 마이데이터 · 타당성 검증</p>
+      <h2 id="t12">판정: 조건부 가능, 지금은 본인이 가져오기</h2>
+      <table>
+        <thead><tr><th>경로</th><th>방법</th><th>지금</th><th>조건</th></tr></thead>
+        <tbody>
+          <tr class="pick"><td>A 본인 가져오기</td><td>나의건강기록 앱 내역 저장·공유, 또는 화면 사진 → AI가 약 목록 정리</td><td class="ok">가능 (시연)</td><td>내보내기 형식 확인 필요</td></tr>
+          <tr><td>B 전송요구권</td><td>본인 요청으로 기관이 데이터를 전송 (2026.2 전 분야 확대)</td><td class="no">직접 수신 불가</td><td>개인정보관리 전문기관 지정 또는 경유</td></tr>
+          <tr><td>C 통합 시스템</td><td>디지털 의료정보교류시스템 (가칭)</td><td class="no">불가</td><td>2029년 개통 계획</td></tr>
+        </tbody>
+      </table>
+      <div class="spacer"></div>
+      <p class="footnote">출처: 정책브리핑(나의건강기록·2029 통합) · 개인정보위 보건의료 고시 개정 보도(2026.3) · 시행령 공포 보도(2026.2) — 세부 요건 확인 필요</p>
+    </section>
+
+    <!-- 13 마이데이터 화면 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t13">
+      <p class="eyebrow">신규 ② 건강 마이데이터 · 화면</p>
+      <h2 id="t13">불러온 약 목록이 진료 한 장에 들어갑니다</h2>
+      <div class="phones">
+        <div class="phone-wrap" data-step data-effect="fade-up">
+          <div class="phone">
+            <div class="ph-title" style="font-size:calc(28 * var(--u))">다른 병원 기록을<br>한 번에 불러올까요?</div>
+            <div class="ph-sub">나의건강기록에서 진료 받은 곳과 받은 약을 가져와요</div>
+            <div class="box"><h4>가져오는 것</h4><span class="ph-ok">✓</span> 최근 1년 진료 받은 곳<br><span class="ph-ok">✓</span> 받은 약 이름과 날짜</div>
+            <div class="ph-card"><span class="ph-sub">불러온 결과</span><br><b>병원 3곳 · 약 6가지</b></div>
+            <div class="ph-fill"></div>
+            <span class="ph-btn">불러오기</span>
+            <span class="ph-btn ghost sm">처방 내역 사진 찍기</span>
+          </div>
+          <p class="cap"><b>1</b> 본인이 직접 가져오기</p>
+        </div>
+        <div class="phone-wrap" data-step data-effect="fade-up">
+          <div class="phone">
+            <div class="sb"><span>확인</span><span>6개 찾음</span></div>
+            <div class="ph-title">이 약들이 맞나요?</div>
+            <div class="ph-row"><span><b>혈압약</b> 1일 1회<br><span class="ph-tag">11/10 ○○내과</span></span><span class="ph-ok">맞아요</span></div>
+            <div class="ph-row"><span><b>당뇨약</b> 1일 2회<br><span class="ph-tag">11/10 ○○내과</span></span><span class="ph-ok">맞아요</span></div>
+            <div class="ph-row"><span><b>위장약</b> 필요 시<br><span class="ph-tag">09/14 △△의원</span></span><span class="ph-warn">확인</span></div>
+            <div class="ph-fill"></div>
+            <span class="ph-btn ghost sm">원문 보기</span>
+          </div>
+          <p class="cap"><b>2</b> AI가 정리 → 가족이 확인</p>
+        </div>
+        <div class="phone-wrap" data-step data-effect="fade-up">
+          <div class="phone">
+            <div class="ph-row"><span class="ph-title">진료 한 장</span><span class="ph-sub">11.20</span></div>
+            <div class="ph-card"><b>말할 것</b><br>1. 오른쪽 무릎, 10/3부터 5번<br>2. 걸을 때·계단에서 더 아파요</div>
+            <div class="ph-card plain"><b>먹는 약 6가지</b> <span class="ph-tag">자동 반영</span><br>병원 3곳 · 최근 1년 처방 기준</div>
+            <div class="ph-fill"></div>
+            <div class="ph-sub">질병 유무를 판단하지 않습니다. 의사와 상담하세요.</div>
+          </div>
+          <p class="cap"><b>3</b> "먹는 약" 자동 채움</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 14 하루 전화 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t14">
+      <p class="eyebrow">신규 ③ 하루 전화 (유료)</p>
+      <h2 id="t14">어르신은 말만, 자녀는 요약을 받습니다</h2>
+      <div class="phones left">
+        <div class="phone-wrap" data-step data-effect="fade-up">
+          <div class="phone">
+            <div class="sb"><span>08:00</span><span>통화 중 · 01:12</span></div>
+            <div class="ph-title" style="text-align:center">진료 한 장 아침 전화</div>
+            <div class="bubble">아침 혈압약 드셨어요?</div>
+            <div class="bubble me">응, 먹었어</div>
+            <div class="bubble">오늘 불편한 곳 있으세요?</div>
+            <div class="bubble me">무릎이 좀 쑤셔</div>
+            <div class="ph-fill"></div>
+            <div class="ph-sub" style="text-align:center">● 말씀하신 내용을 기록 중</div>
+            <span class="ph-btn ghost sm">통화 끝내기</span>
+          </div>
+          <p class="cap"><b>1</b> 어르신: 받고 대답만</p>
+        </div>
+        <div class="phone-wrap" data-step data-effect="fade-up">
+          <div class="phone">
+            <div class="sb"><span>08:05</span><span>하루 요약</span></div>
+            <div class="ph-title">어머니 · 아침 전화 3분</div>
+            <div class="ph-row"><span>혈압약</span><span class="ph-ok">08:03 확인</span></div>
+            <div class="ph-row"><span>증상</span><span class="ph-acc">"무릎이 좀 쑤셔"</span></div>
+            <div class="ph-card plain ph-sub">무릎 언급 이번 주 3번째 (기록 기준)</div>
+            <div class="ph-row"><span>내일 일정</span><span>10:00 정형외과</span></div>
+            <div class="ph-fill"></div>
+            <div class="ph-sub">말씀하신 내용만 전합니다 · 판단하지 않습니다</div>
+          </div>
+          <p class="cap"><b>2</b> 자녀: 하루 요약</p>
+        </div>
+        <div class="callout side" data-step>
+          <h3>기술 구성</h3>
+          <ul>
+            <li><b>음성 안내(TTS)</b>: 읽어 줌</li>
+            <li><b>음성 인식</b>: 대답을 기록</li>
+            <li><b>AI 요약</b>: 말한 것만</li>
+          </ul>
+          <p style="margin-top:calc(12 * var(--u))">진료는 한 달에 한두 번, <b>안부는 매일</b> → 유료의 이유</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 15 병원 광고 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t15">
+      <p class="eyebrow">유지 ④ 병원 광고</p>
+      <h2 id="t15">광고는 정액으로, 병원 정보 탭에만</h2>
+      <div class="phones left">
+        <div class="phone-wrap">
+          <div class="phone">
+            <div class="sb"><span>자녀 앱</span><span>어머니</span></div>
+            <div class="ph-tabs"><span>기록</span><span>진료 한 장</span><span class="on">병원 정보</span></div>
+            <div class="ph-sub">강원 ○○군 · 내과 · 모두에게 같은 순서</div>
+            <div class="ph-card warn"><span class="ph-tag ad">광고</span> <b>읍내 ○○내과</b><br><span class="ph-sub">평일 9–18시 · 토 오전</span></div>
+            <div class="ph-row"><span><b>○○면 보건지소</b><br><span class="ph-sub">공공 · 평일 9–18시</span></span><span class="ph-tag">정보</span></div>
+            <div class="ph-row"><span><b>△△의원</b><br><span class="ph-sub">평일 9–17시</span></span><span class="ph-tag">정보</span></div>
+            <div class="ph-fill"></div>
+            <div class="ph-card plain ph-sub" style="text-align:center">기록·진료 한 장 화면에는 광고 없음</div>
+          </div>
+          <p class="cap">병원 정보 탭</p>
+        </div>
+        <table class="tight side" style="max-width:none">
+          <thead><tr><th></th><th>하는 것</th><th>하지 않는 것</th></tr></thead>
+          <tbody>
+            <tr><td>과금</td><td class="ok">월 정액</td><td class="no">예약·방문 건당 수수료</td></tr>
+            <tr><td>대상</td><td class="ok">지역·진료과 기준, 모두 같게</td><td class="no">증상 기록 기반 맞춤</td></tr>
+            <tr><td>위치</td><td class="ok">병원 정보 탭</td><td class="no">진료 한 장·알림·카드</td></tr>
+            <tr><td>표시</td><td class="ok">"광고" 명시</td><td class="no">추천·순위처럼</td></tr>
+            <tr><td>심의</td><td colspan="2">의료광고 사전심의 대상 여부 확인 필요</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="spacer"></div>
+      <p class="footnote">근거: 의료법 제27조 제3항(환자 소개·알선·유인 금지) · 대법원 2010도1763(2012, 불특정 다수 광고는 원칙적으로 유인 아님) · 강남언니 1심(2022)</p>
+    </section>
+
+    <!-- 16 강원 가치 1 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t16">
+      <p class="eyebrow">강원에 주는 가치 ① 헛걸음 없는 진료</p>
+      <h2 id="t16">먼 길 한 번에, 할 말과 챙길 것을 다</h2>
+      <div class="phones left">
+        <div class="phone-wrap">
+          <div class="phone">
+            <div class="sb"><span>아들 · 진료 전날</span><span>19:00</span></div>
+            <div class="ph-card plain"><b>내일 10시 ○○정형외과</b><br><span class="ph-sub">읍내까지 버스 · 왕복 반나절</span></div>
+            <div class="ph-card"><b>말할 것</b><br>1. 오른쪽 무릎, 10/3부터 5번<br>2. 내과 약 2가지 같이 드심</div>
+            <div class="ph-card warn"><b>챙길 것</b> <span class="ph-sub">안내문에 적힌 대로</span><br>☐ 지난번 결과지<br>☐ 먹는 약 봉투<br>☐ 진료 한 장 (종이)</div>
+            <div class="ph-fill"></div>
+            <span class="ph-btn" style="background:var(--ink)">어머니께 전화하기</span>
+          </div>
+          <p class="cap">"말할 것" + "챙길 것"</p>
+        </div>
+        <div class="side" style="max-width:calc(900 * var(--u))">
+          <table class="tight">
+            <thead><tr><th>진료 전후</th><th>진료 한 장이 하는 일</th></tr></thead>
+            <tbody>
+              <tr><td>전날</td><td>할 말 3가지 + 챙길 것 (자녀에게도)</td></tr>
+              <tr><td>진료실</td><td>"언제부터, 몇 번"을 기록 그대로</td></tr>
+              <tr><td>진료 후</td><td>다음에 할 일 3가지 + 다음 예약</td></tr>
+              <tr><td>다음 진료</td><td>예약을 잊지 않게 전날 다시 알림</td></tr>
+            </tbody>
+          </table>
+          <div class="callout" style="margin-top:calc(24 * var(--u))">병원이 먼 곳일수록 <b>진료 한 번의 무게가 큽니다.</b> 빠뜨린 말과 서류로 다시 가는 길을 줄입니다.</div>
+        </div>
+      </div>
+      <div class="spacer"></div>
+      <p class="footnote">공보의 945명 → 587명 (2025→2026, 정부 발표 보도) · 효과(재방문 감소)는 시범 운영에서 측정할 가설</p>
+    </section>
+
+    <!-- 17 강원 가치 2: 근거 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t17" data-transition="fade">
+      <p class="eyebrow">강원에 주는 가치 ② 큰 병원과 동네를 잇는 기록</p>
+      <h2 id="t17">큰 병원은 연결됐지만, 동네 의원은 3%</h2>
+      <div class="cols">
+        <table class="tight">
+          <thead><tr><th>건강정보 고속도로 연결</th><th>연결</th></tr></thead>
+          <tbody>
+            <tr><td>상급종합병원</td><td class="ok">47 / 47곳 (100%)</td></tr>
+            <tr><td>종합병원</td><td>115 / 337곳 (34%)</td></tr>
+            <tr class="pick"><td>병·의원</td><td class="no">1,201 / 39,160곳 (3.07%)</td></tr>
+            <tr><td>나의건강기록 공유 (2026.1~7)</td><td>50건</td></tr>
+            <tr><td>통합 시스템</td><td>2029년 개통 계획</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">
+          <h3>빈틈</h3>
+          <ul>
+            <li>강원 동네 의원 대부분은 <b>받을 통로가 없음</b></li>
+            <li>연결돼도 <b>의사끼리만</b> 봄</li>
+            <li>어르신·가족·보건진료소는 <b>쉬운 말로 볼 길이 없음</b></li>
+          </ul>
+        </div>
+      </div>
+      <div class="spacer"></div>
+      <p class="footnote">2026.10 국정감사 자료 보도(데일리메디) · 진료정보교류 참여 1만 곳(2026.2) · 서울 의료기관 이용자의 41.8%가 타지역 환자(건보공단 2025) · 상급종합병원 구조전환: 치료 후 관리는 동네로 회송</p>
+      <aside class="notes">"진료정보교류 있지 않나요?" → 큰 병원 쪽은 연결돼 있습니다. 하지만 동네 의원은 3%만 연결됐고, 그마저도 의사끼리만 봅니다. 저희는 그 정보를 어르신과 가족 손에 쉬운 말로 쥐여 드립니다.</aside>
+    </section>
+
+    <!-- 18 강원 가치 2: 화면 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t18">
+      <p class="eyebrow">강원에 주는 가치 ② 화면</p>
+      <h2 id="t18">큰 병원 결과가 동네 진료 한 장으로</h2>
+      <div class="phones left">
+        <div class="phone-wrap" data-step data-effect="fade-up">
+          <div class="phone">
+            <div class="sb"><span class="ph-acc" style="color:var(--ink)">● 서울 ○○대학병원 · 11/05</span><span class="ph-acc">🔈</span></div>
+            <div class="ph-title">큰 병원 결과 쉬운 말 카드</div>
+            <div class="med"><b>심장 초음파 결과</b>의사 소견: 지난번과 비슷함<small>원문: LVEF 55%, no interval change</small></div>
+            <div class="ph-card warn"><b>다음 관리</b> <span class="ph-sub">안내문 그대로</span><br>3개월 뒤 가까운 의원에서 혈압·약 확인<br>6개월 뒤 이 병원 재진</div>
+            <div class="ph-fill"></div>
+            <div class="g2"><span class="ph-btn ghost sm">원문 보기</span><span class="ph-btn sm" style="background:var(--ink)">기록에 넣기</span></div>
+          </div>
+          <p class="cap"><b>1</b> 큰 병원 다녀온 날</p>
+        </div>
+        <div class="phone-wrap" data-step data-effect="fade-up">
+          <div class="phone">
+            <div class="ph-row"><span class="ph-title">진료 한 장</span><span class="ph-sub">2027.02 · ○○내과</span></div>
+            <div class="box" style="border-color:var(--ink)"><h4>큰 병원 다녀온 내용</h4>11/05 서울 ○○대학병원<br>· 심장 초음파: 지난번과 비슷<br>· "3개월 뒤 가까운 의원에서 확인"</div>
+            <div class="ph-card"><b>말할 것</b><br>1. 큰 병원 안내대로 확인하러 왔어요<br>2. 아침 어지러움 2번 (1월)</div>
+            <div class="ph-fill"></div>
+            <span class="ph-btn sm" style="background:var(--ink)">종이로 뽑기</span>
+          </div>
+          <p class="cap"><b>2</b> 동네 의원 진료 날</p>
+        </div>
+        <div class="callout side" data-step>
+          <h3>시스템이 없어도 작동</h3>
+          <p>동네 의원에 연결 시스템이 없어도 <b>종이 한 장</b>으로 전달합니다.</p>
+          <p>같은 내용을 가족과 담당자는 <b>쉬운 말</b>로 봅니다.</p>
+          <p class="ph-sub" style="font-size:calc(22 * var(--u))">안내문에 적힌 문구만 옮기고, 어디서 진료받을지는 판단하지 않습니다.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 18b 클라우드 흐름 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t18b">
+      <p class="eyebrow">강원에 주는 가치 ② 연동 의원 열람 (신규)</p>
+      <h2 id="t18b">찍어 두면, 연동된 동네 의원이 바로 봅니다</h2>
+      <div class="timeline">
+        <div data-step data-effect="fade-up"><b>① 큰 병원</b>결과지·검사지·처방전을 종이로 받음</div>
+        <div data-step data-effect="fade-up"><b>② 앱으로 찍기</b>쉬운 말 카드 + 원본 사진을 함께 저장</div>
+        <div data-step data-effect="fade-up"><b>③ 클라우드 보관</b>본인 동의 후 암호화 저장, 어르신이 고른 범위만</div>
+        <div data-step data-effect="fade-up"><b>④ 연동 의원</b>진료 때 어르신이 QR을 보여 주면 그날만 열람</div>
+      </div>
+      <div class="spacer"></div>
+      <div class="callout" data-step>
+        <h3>세 가지 조건</h3>
+        <ul>
+          <li><b>연동 의원만</b> 열람 · 의원 가입은 <b>무조건 무료</b></li>
+          <li>열람은 <b>진료 때마다 어르신이 허락</b> (당일만, 열람 기록 남김)</li>
+          <li>의원은 <b>장비·EMR 연계 공사 없이</b> 웹으로 열람 · 미연동 의원은 종이로</li>
+        </ul>
+      </div>
+      <p class="footnote">비교: 건강정보 고속도로는 의원급 연계 비용 약 200만 원이 부담으로 지적됨(2026.10 보도) · 웹 열람 방식은 설계 목표이며 보안 요건 확인 필요</p>
+    </section>
+
+    <!-- 18c 어르신 화면 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t18c">
+      <p class="eyebrow">강원에 주는 가치 ② 어르신 화면</p>
+      <h2 id="t18c">찍고, 연동 의원을 찾고, 진료 때 허락</h2>
+      <div class="phones">
+        <div class="phone-wrap" data-step data-effect="fade-up">
+          <div class="phone">
+            <div class="sb"><span>큰 병원 기록</span><span>🔒 저장됨</span></div>
+            <div class="ph-title">서울 ○○대학병원<br>11월 5일 기록 3장</div>
+            <div class="ph-row"><span><b>심장 초음파 결과지</b><br><span class="ph-sub">원본 사진 + 쉬운 말</span></span><span class="ph-ok">저장</span></div>
+            <div class="ph-row"><span><b>처방전</b><br><span class="ph-sub">약 2가지</span></span><span class="ph-ok">저장</span></div>
+            <div class="ph-row"><span><b>다음 진료 안내문</b><br><span class="ph-sub">"3개월 뒤 가까운 의원"</span></span><span class="ph-ok">저장</span></div>
+            <div class="ph-fill"></div>
+            <div class="ph-card plain ph-sub">내 허락 없이는 아무도 못 봐요. 휴대폰을 잃어버려도 기록은 남아요.</div>
+            <span class="ph-btn sm">쉬운 말 카드 보기</span>
+          </div>
+          <p class="cap"><b>1</b> 찍으면 클라우드에 보관</p>
+        </div>
+        <div class="phone-wrap" data-step data-effect="fade-up">
+          <div class="phone">
+            <div class="ph-title">연동 의원 찾기</div>
+            <div class="ph-sub">진료 한 장을 바로 볼 수 있는 동네 의원</div>
+            <div><span class="chip kb">내과</span> <span class="chip k1">정형외과</span> <span class="chip k1">안과</span> <span class="chip k1">치과</span></div>
+            <div class="ph-row"><span><b>○○내과</b> · 1.2km<br><span class="chip k3">✓ 진료 한 장 연동</span></span><span class="ph-sub">평일<br>9–18시</span></div>
+            <div class="ph-row"><span><b>△△내과</b> · 3.4km<br><span class="chip k3">✓ 진료 한 장 연동</span></span><span class="ph-sub">토 오전</span></div>
+            <div class="ph-row"><span><b>◇◇의원</b> · 5.0km<br><span class="ph-sub">미연동 · 종이로 보여 주세요</span></span><span></span></div>
+            <div class="ph-fill"></div>
+            <div class="ph-sub" style="text-align:center">가까운 순 · 광고와 상관없는 순서</div>
+          </div>
+          <p class="cap"><b>2</b> 진료과별 연동 의원</p>
+        </div>
+        <div class="phone-wrap" data-step data-effect="fade-up">
+          <div class="phone">
+            <div class="ph-title" style="text-align:center">선생님께 보여 주기</div>
+            <div class="qr"></div>
+            <div class="ph-big" style="font-size:calc(34 * var(--u));color:var(--ink)">482 917</div>
+            <div class="ph-sub" style="text-align:center">○○내과에 <b>오늘 하루만</b> 보여 줘요</div>
+            <div class="box"><span class="ph-ok">✓</span> 진료 한 장 · <span class="ph-ok">✓</span> 먹는 약<br><span class="ph-ok">✓</span> 큰 병원 기록 3장<br><span class="ph-sub">✕ 매일의 증상 기록</span></div>
+            <div class="ph-fill"></div>
+            <span class="ph-btn">허락하기</span>
+          </div>
+          <p class="cap"><b>3</b> 진료 때마다 허락</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 18d 의원 화면 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t18d">
+      <p class="eyebrow">강원에 주는 가치 ② 연동 의원 화면 (웹)</p>
+      <h2 id="t18d">의원은 무료로, 진료 전에 큰 병원 기록까지</h2>
+      <div class="tablet" style="height:calc(560 * var(--u))" data-step data-effect="fade-up">
+        <div class="lst">
+          <div class="ph-row" style="border:0"><b style="font-size:calc(26 * var(--u))">○○내과 · 오늘</b><span class="ph-sub">연동 무료</span></div>
+          <div class="ph-sub">열람을 허락한 환자</div>
+          <div class="ti sel"><b>김순자 · 78</b><small>10:02 허락</small><br><span class="chip k3">오늘 18:00까지</span> <span class="chip kb">큰 병원 기록</span></div>
+          <div class="ti"><b>이○○ · 82</b><small>09:40 허락</small><br><span class="chip k3">오늘 18:00까지</span></div>
+          <div class="ph-fill"></div>
+          <div class="box ph-sub">열람한 기록은 어르신 앱에 "○○내과가 봤어요"로 남습니다</div>
+        </div>
+        <div class="det">
+          <div class="ph-row" style="border:0"><b style="font-size:calc(28 * var(--u))">김순자 님 · 78세</b><span class="ph-sub">어르신 기록과 사진을 그대로 보여 줍니다</span></div>
+          <div class="d2">
+            <div class="box"><h4>진료 한 장 · 말할 것</h4>1. 큰 병원 안내대로 확인하러 옴<br>2. 아침 어지러움 2번 (1월)<br>3. 무릎 통증 10/3부터 5번<h4 style="margin-top:calc(10 * var(--u))">먹는 약 6가지 · 병원 3곳</h4>암로디핀 · 메트포르민 · 셀레콕시브 외 3</div>
+            <div class="box"><h4>큰 병원 기록 · 원본 사진</h4>
+              <div class="m3"><div class="box" style="text-align:center;padding:calc(18 * var(--u)) 0">결과지</div><div class="box" style="text-align:center;padding:calc(18 * var(--u)) 0">처방전</div><div class="box" style="text-align:center;padding:calc(18 * var(--u)) 0">안내문</div></div>
+              <span class="ph-sub">11/05 서울 ○○대학병원 · 눌러서 원본 크게 보기</span></div>
+          </div>
+          <div class="ph-sub">쉬운 말 요약은 어르신용 참고 문장이며 원본 사진이 기준입니다 · 진단하지 않습니다</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 18e 누가 얻나 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t18e" data-transition="fade">
+      <p class="eyebrow">강원에 주는 가치 ② 누가 무엇을 얻나</p>
+      <h2 id="t18e">의원은 정보와 환자를, 우리는 연결망을</h2>
+      <table class="tight">
+        <thead><tr><th>대상</th><th>얻는 것</th><th>조건</th></tr></thead>
+        <tbody>
+          <tr><td>어르신</td><td>큰 병원 이야기를 다시 설명하지 않아도 됨, 서류 분실 걱정 없음</td><td>진료 때마다 본인 허락</td></tr>
+          <tr class="pick"><td>동네 의원</td><td>진료 전 볼 수 있는 정보가 늘어 판단에 도움 (기대 효과) · 앱에 "연동 의원"으로 표시돼 방문 증가 기대</td><td><b>가입·이용 무료</b>, 장비 불필요</td></tr>
+          <tr><td>가족 · 담당자</td><td>같은 기록을 쉬운 말로 확인</td><td>어르신이 고른 사람만</td></tr>
+          <tr><td>진료 한 장</td><td>연동 의원 연결망 = 따라오기 어려운 장벽 · 사용자 증가 → 구독 매출</td><td><b>의원에게 돈을 받지 않음</b></td></tr>
+        </tbody>
+      </table>
+      <div class="spacer"></div>
+      <p class="footnote">"오진 감소"는 검증 전이라 "판단에 도움이 되는 정보 증가"로 표현 · 연동 표시는 모든 의원에 무료·같은 기준이며 병원 광고와 분리 · 의원 열람은 민감정보 제3자 제공 동의와 의료기기 해당 여부 검토 필요</p>
+      <aside class="notes">의원에게 돈을 받지 않는 이유: 환자를 보내 주는 대가로 보이면 의료법상 환자 알선 문제가 생길 수 있습니다. 연동은 무료, 표시는 같은 기준(거리순)으로만 합니다.</aside>
+    </section>
+
+    <!-- 19 강원에서 하는 일 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t19" data-transition="fade">
+      <p class="eyebrow">강원에서 하는 일</p>
+      <h2 id="t19">기능마다 강원의 한 장면을 맡습니다</h2>
+      <table class="tight">
+        <thead><tr><th>기능</th><th>강원에서의 장면</th></tr></thead>
+        <tbody>
+          <tr><td>하루 전화</td><td>스마트폰이 서툰 혼자 사는 어르신도 <b>전화로</b> 기록</td></tr>
+          <tr><td>복약 알람</td><td>멀리 사는 자녀에게 <b>사실만</b> 전달, 전화 한 통으로 챙김</td></tr>
+          <tr><td>연동 의원 열람</td><td>큰 병원 기록을 찍어 두면 <b>동네 연동 의원이 진료 때 바로</b> 봄, 미연동은 종이로</td></tr>
+          <tr><td>쉬운 말 카드</td><td>서울·춘천·원주 큰 병원 결과를 <b>동네 관리</b>로 가져옴</td></tr>
+          <tr><td>담당자 방문 전 한 장</td><td>넓은 면 단위 방문 전 <b>바뀐 기록만</b> 확인</td></tr>
+          <tr><td>마이데이터</td><td>여러 병원 약을 <b>한 목록</b>으로 (지금은 본인이 가져오기)</td></tr>
+        </tbody>
+      </table>
+      <div class="spacer"></div>
+      <p class="footnote">강원 65세 이상 25.7%(2025 보도) — v3의 26.4%(건보 통계)와 기준 차이, 확인 필요 · 강원에서 검증 → 전국 의료취약지로 확산</p>
+    </section>
+
+    <!-- 20 수익 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t20" data-transition="fade">
+      <p class="eyebrow">수익 모델</p>
+      <h2 id="t20">메인 매출은 자녀의 매일 챙김 구독</h2>
+      <table>
+        <thead><tr><th>수익원</th><th>누가 내나</th><th>방식</th><th>역할</th></tr></thead>
+        <tbody>
+          <tr class="pick"><td>매일 챙김 플랜 (하루 전화 + 복약 알람)</td><td>자녀</td><td>월 구독</td><td>메인 · 반복 매출</td></tr>
+          <tr><td>진료 패스 · 충전식 카드</td><td>자녀</td><td>건별</td><td>구독이 부담인 가족</td></tr>
+          <tr><td>병원 광고</td><td>지역 의원</td><td>월 정액</td><td>보조</td></tr>
+          <tr><td>연동 의원 연결망</td><td>동네 의원</td><td>무료</td><td>사용자 유입 · 진입장벽 (매출 아님)</td></tr>
+          <tr><td>시군 실증 · 창업 공모</td><td>정부 · 지자체</td><td>사업비</td><td>초기 자금</td></tr>
+        </tbody>
+      </table>
+      <div class="spacer"></div>
+      <p class="footnote">어르신은 무료 · 가격·전환율은 지방에 부모를 둔 자녀 대상 지불 의사 설문으로 확정 예정 (확인 필요)</p>
+    </section>
+
+    <!-- 21 리스크 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t21" data-transition="fade">
+      <p class="eyebrow">리스크와 대응</p>
+      <h2 id="t21">리스크마다 대응을 미리 정했습니다</h2>
+      <table class="tight">
+        <thead><tr><th>리스크</th><th>대응</th></tr></thead>
+        <tbody>
+          <tr><td>어르신이 전화를 받지 않음</td><td>첫 통화는 자녀 녹음 안내, 시간·횟수는 어르신이 선택</td></tr>
+          <tr><td>"안 먹음"으로 오해</td><td>"확인 안 됨"으로만 표기, 알림 기준은 가족이 설정</td></tr>
+          <tr><td>광고가 환자 알선으로 보임</td><td>정액 · 비맞춤 · 광고와 건강 기록 데이터 분리</td></tr>
+          <tr><td>마이데이터 직접 연동 지연</td><td>본인 가져오기로 시작, 직접 연동은 로드맵</td></tr>
+          <tr><td>2029 통합 시스템 이후</td><td>평소 증상·쉬운 말·가족 공유는 병원 시스템이 하지 않는 일</td></tr>
+          <tr><td>의원 열람 (민감정보 제3자 제공)</td><td>진료 때마다 본인 허락·당일만·열람 기록, 의료기기 해당 여부 검토</td></tr>
+          <tr><td>강원 시장이 작음</td><td>강원은 검증 지역, 매출은 전국 "지방에 부모를 둔 자녀"</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 22 로드맵 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t22">
+      <p class="eyebrow">미래 계획</p>
+      <h2 id="t22">다음 단계: 마이데이터·비대면·연동 의원</h2>
+      <div class="road">
+        <div class="now" data-step data-effect="fade-up"><b>지금</b><span class="when">2026.11 · 해커톤</span>
+          <p class="trk"><em>마이데이터</em><br>본인 가져오기 시연</p>
+          <p class="trk tele"><em>비대면 진료</em><br>연결 없음, 진료 한 장만</p>
+          <p class="trk net"><em>연동 의원</em><br>찍기 → 열람 시연</p></div>
+        <div data-step data-effect="fade-up"><b>시범</b><span class="when">2026.12 ~ 2027</span>
+          <p class="trk"><em>마이데이터</em><br>전송요구권 경로 검토, 전문기관 경유 협의</p>
+          <p class="trk tele"><em>비대면 진료</em><br>법 시행(2026.12 예정) 후 진료 때 환자가 진료 한 장 공유</p>
+          <p class="trk net"><em>연동 의원</em><br>강원 시군 1곳 의원 연동 (무료)</p></div>
+        <div data-step data-effect="fade-up"><b>확산</b><span class="when">2028</span>
+          <p class="trk"><em>마이데이터</em><br>투약·진료 이력 자동 수신 (지정 또는 경유)</p>
+          <p class="trk tele"><em>비대면 진료</em><br>공공 플랫폼 개통 예정 → 보건지소 원격협진에 진료 한 장</p>
+          <p class="trk net"><em>연동 의원</em><br>강원 전역 → 의료취약지</p></div>
+        <div data-step data-effect="fade-up"><b>고도화</b><span class="when">2029 ~</span>
+          <p class="trk"><em>마이데이터</em><br>통합 의료정보 시스템 연동</p>
+          <p class="trk tele"><em>비대면 진료</em><br>인증 플랫폼과 연계, 수수료 없음 원칙</p>
+          <p class="trk net"><em>연동 의원</em><br>통합 시스템과 병행 연결</p></div>
+      </div>
+      <div class="spacer"></div>
+      <p class="footnote">비대면 진료법 공포 2025.12, 시행 2026.12 예정(보도마다 날짜 차이) · 공공 플랫폼 2028 · 통합 시스템 2029 계획 — 확인 필요</p>
+    </section>
+
+    <!-- 23 확산 화면 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t23">
+      <p class="eyebrow">확산 단계 화면 (PT용 그림)</p>
+      <h2 id="t23">같은 기록으로 퇴원·방문 진료·다국어까지</h2>
+      <div class="phones">
+        <div class="phone-wrap">
+          <div class="phone">
+            <div class="ph-sub">○○병원 · 11월 28일 퇴원</div>
+            <div class="ph-title">집에 가서 할 일</div>
+            <div class="med" style="font-size:calc(21 * var(--u))"><b style="display:inline;font-size:inherit">1주일</b>은 무거운 것 들지 않기<br>수술 자리는 <b style="display:inline;font-size:inherit">3일 뒤</b>부터 씻기<br><b style="display:inline;font-size:inherit">12월 5일</b> 실밥 풀러 오기</div>
+            <div class="ph-card"><b>이럴 땐 바로 병원에 연락</b><br>열이 나요 · 수술 자리가 붓고 빨개요<br><span class="ph-sub">퇴원 안내문에 적힌 내용 그대로</span></div>
+            <div class="ph-fill"></div>
+            <div class="g2"><span class="ph-btn ghost sm">원문 보기</span><span class="ph-btn sm">읽어 주기</span></div>
+          </div>
+          <p class="cap"><b>X1</b> 퇴원 안내 카드</p>
+        </div>
+        <div class="phone-wrap">
+          <div class="phone">
+            <div class="ph-sub">12월 3일 방문 진료 예정</div>
+            <div class="ph-title">○○리 어르신 4명</div>
+            <div class="box"><b>김순자 · 78</b> <span class="chip kb">새 처방</span><br><span class="ph-sub">무릎 5번 · 약 4가지 (병원 2곳)</span></div>
+            <div class="box"><b>이○○ · 82</b> <span class="chip k1">새 증상</span><br><span class="ph-sub">어지러움 3번 (아침) · 약 5가지</span></div>
+            <div class="box"><b>정○○ · 80</b> <span class="chip k2">약 11가지</span><br><span class="ph-sub">다제약물 관리사업 안내함</span></div>
+            <div class="ph-fill"></div>
+            <div class="ph-sub">어르신이 허락한 진료 한 장만 보여요</div>
+          </div>
+          <p class="cap"><b>X2</b> 방문 진료 사전 자료 (의사용)</p>
+        </div>
+        <div class="phone-wrap">
+          <div class="phone">
+            <div class="ph-tabs"><span>한국어</span><span class="on">Tiếng Việt</span><span>中文</span></div>
+            <div class="ph-sub" style="color:var(--accent-2)">● ○○정형외과 · 11월 17일</div>
+            <div class="med"><b>Thuốc giảm đau và sưng đầu gối</b>Ngày 2 lần · sau khi ăn 1 viên</div>
+            <div class="box"><h4>한국어로 함께 보기</h4>무릎 통증과 붓기를 줄이는 약 · 하루 2번 밥 먹고 1알</div>
+            <div class="ph-sub">원문: 셀레콕시브 200mg 1C bid pc</div>
+            <div class="ph-fill"></div>
+            <div class="ph-sub">번역은 한국어 문장과 함께 보여 줘요</div>
+          </div>
+          <p class="cap"><b>X3</b> 다국어 쉬운 말 카드</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 24 출처 -->
+    <section class="slide" role="group" aria-roledescription="슬라이드" aria-labelledby="t24" data-transition="zoom">
+      <p class="eyebrow">출처</p>
+      <h2 id="t24">출처</h2>
+      <ul class="srcs">
+        <li>병·의원 연계 3.07%, 나의건강기록 공유 50건(2026.10 국감): dailymedi.com/news/news_view.php?wr_id=941632</li>
+        <li>진료정보교류 1만 곳(2026.2): medigatenews.com/news/4207838030 · 통합 2029: mt.co.kr/thebio/2026/03/30/2026033013514993329</li>
+        <li>서울 의료기관 타지역 환자 41.8%: dailymedi.com/news/news_view.php?wr_id=942089 · 상급종합병원 구조전환·회송: dailymedi.com/news/news_view.php?wr_id=933452</li>
+        <li>나의건강기록·마이데이터: korea.kr/news/policyNewsView.do?newsId=148922265 · newsseoul.co.kr/news/view/1065585620225734 · byline.network/2026/02/10-613/</li>
+        <li>비대면 진료법·시행령·공공 플랫폼: dailypharm.com/user/news/333584 · m.dailypharm.com/user/news/342816 · dailypharm.com/user/news/343545</li>
+        <li>의료광고와 환자 유인: medicaltimes.com/Main/view.html?ID=1077996 · 강남언니 1심: fnnews.com/news/202201271700056405</li>
+        <li>강원 고령인구 25.7%: segye.com/newsView/20260501505497 · 공보의 감소: 제안서 v3 출처 [6]</li>
+      </ul>
+    </section>
+
+    <div class="progress" aria-hidden="true"><span></span></div>
+    <nav class="controls" aria-label="슬라이드 이동">
+      <button type="button" data-action="prev" aria-label="이전 슬라이드">‹</button>
+      <span class="counter" id="counter" aria-hidden="true"></span>
+      <button type="button" data-action="next" aria-label="다음 슬라이드">›</button>
+      <button type="button" data-action="full" aria-label="전체화면">⛶</button>
+    </nav>
+  </div>
+  <div class="sr-only" id="status" aria-live="polite" aria-atomic="true"></div>
+</main>
+<div class="blackout" aria-hidden="true"></div>
+
+<script>
+(() => {
+  const O = { transition: 'slide', duration: 500, historyMode: 'replace', allowRepeat: false, swipeMin: 40 };
+  const root = document.documentElement;
+  const stage = document.getElementById('stage');
+  const slides = [...stage.querySelectorAll(':scope > .slide')];
+  const status = document.getElementById('status');
+  const counter = document.getElementById('counter');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+  const n = slides.length;
+  let cur = -1, step = 0, active = null, autoTimer = null;
+
+  // ---------- 원칙 6: steps ----------
+  // numbered groups first (ascending), then unnumbered elements in DOM order; renumbered 1..N
+  function collect(slide) {
+    const byNum = new Map(), free = [];
+    for (const el of slide.querySelectorAll('[data-step]')) {
+      const k = parseInt(el.dataset.step, 10);
+      if (Number.isFinite(k)) (byNum.get(k) || byNum.set(k, []).get(k)).push(el);
+      else free.push([el]);
+    }
+    slide._groups = [...[...byNum.keys()].sort((a, b) => a - b).map(k => byNum.get(k)), ...free];
+    slide._groups.forEach(g => g.forEach((el, j) => el.style.setProperty('--i', j)));
+  }
+  function applyStep(slide, k) {
+    k = Math.max(0, Math.min(k, slide._groups.length));
+    slide._groups.forEach((g, i) => g.forEach(el => {
+      const out = parseInt(el.dataset.stepOut, 10);
+      el.classList.toggle('is-visible', i + 1 <= k && !(Number.isFinite(out) && k >= out));
+      el.classList.toggle('is-current', i + 1 === k);
+    }));
+    return k;
+  }
+  slides.forEach(collect);
+
+  // ---------- 원칙 5: transitions (WAAPI, skip-to-end on new input) ----------
+  const EFFECTS = {
+    fade:  () => ({ out: [{ opacity: 1 }, { opacity: 0 }], in: [{ opacity: 0 }, { opacity: 1 }] }),
+    slide: d => ({ out: [{ transform: 'translateX(0)' }, { transform: `translateX(${-100 * d}%)` }],
+                   in:  [{ transform: `translateX(${100 * d}%)` }, { transform: 'translateX(0)' }] }),
+    zoom:  d => ({ out: [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: `scale(${d > 0 ? 1.5 : 0.6})` }],
+                   in:  [{ opacity: 0, transform: `scale(${d > 0 ? 0.6 : 1.5})` }, { opacity: 1, transform: 'scale(1)' }] }),
+  };
+  function swap(from, to) {
+    if (active) active.done();
+    slides.forEach((s, i) => { s.inert = i !== to; });
+    const inEl = slides[to], outEl = slides[from];
+    if (!outEl) { inEl.classList.add('is-current'); return; }            // first render: no animation
+    let name = inEl.dataset.transition || O.transition, duration = O.duration;
+    if (reduce.matches) { name = 'fade'; duration = 150; }
+    const fx = (EFFECTS[name] || EFFECTS.fade)(to > from ? 1 : -1);
+    stage.dataset.animating = '';
+    outEl.classList.remove('is-current');
+    outEl.classList.add('is-outgoing');
+    inEl.classList.add('is-incoming');
+    outEl.style.willChange = inEl.style.willChange = 'transform, opacity';
+    const opts = { duration, easing: 'cubic-bezier(.2,.7,.2,1)', fill: 'both' };
+    const anims = [outEl.animate(fx.out, opts), inEl.animate(fx.in, opts)];
+    const t = {
+      done() {                                                            // idempotent
+        if (active !== t) return;
+        active = null;
+        clearTimeout(t.timer);
+        outEl.classList.remove('is-outgoing');
+        inEl.classList.remove('is-incoming');
+        inEl.classList.add('is-current');
+        outEl.style.willChange = inEl.style.willChange = '';
+        delete stage.dataset.animating;
+        anims.forEach(a => a.cancel());
+      },
+    };
+    active = t;
+    t.timer = setTimeout(t.done, duration + 200);                         // safety net
+    Promise.all(anims.map(a => a.finished)).then(t.done)
+      .catch(e => { if (e.name !== 'AbortError') console.error(e); });
+  }
+
+  // ---------- render ----------
+  function show(i, k, { fromUser = true } = {}) {
+    i = Math.max(0, Math.min(i, n - 1));
+    const changed = i !== cur, prevStep = step;
+    if (changed) swap(cur, i);
+    cur = i;
+    step = applyStep(slides[i], k);
+    if (!changed && step === prevStep) return;
+    root.style.setProperty('--progress', n > 1 ? i / (n - 1) : 0);
+    counter.textContent = `${i + 1} / ${n}`;
+    const text = changed
+      ? `슬라이드 ${i + 1} / ${n}: ${slides[i].querySelector('h1, h2')?.textContent.trim() ?? ''}`
+      : step > prevStep ? slides[i]._groups[step - 1].map(el => el.textContent.trim()).join(' ') : '';
+    if (text) requestAnimationFrame(() => { status.textContent = text; });
+    writeHash(changed && fromUser);
+    updateLive();
+    if (changed) startAutoplay(slides[i]);
+  }
+  function next() {
+    stopAutoplay();
+    if (step < slides[cur]._groups.length) show(cur, step + 1);
+    else if (cur < n - 1) show(cur + 1, 0);
+  }
+  function prev() {
+    stopAutoplay();
+    if (step > 0) show(cur, step - 1);
+    else if (cur > 0) show(cur - 1, Infinity);                            // previous slide: all steps visible
+  }
+
+  // ---------- 원칙 7: URL hash #/3 or #/3.2 (1-based slide) ----------
+  function readHash() {
+    const m = /^#\/(\d+)(?:\.(\d+))?$/.exec(location.hash);
+    return m ? [parseInt(m[1], 10) - 1, m[2] ? parseInt(m[2], 10) : 0] : [0, 0];
+  }
+  function writeHash(push) {
+    const hash = `#/${cur + 1}${step ? '.' + step : ''}`;
+    if (location.hash === hash) return;
+    try {
+      if (O.historyMode === 'push' && push) history.pushState(null, '', hash);
+      else history.replaceState(null, '', hash);
+    } catch { /* SecurityError when called too often, or file:// restrictions */ }
+  }
+  const onUrl = () => { const [i, k] = readHash(); show(i, k, { fromUser: false }); };
+
+  // ---------- 원칙 7: keyboard ----------
+  const EDITABLE = 'input, textarea, select, [contenteditable]:not([contenteditable="false"])';
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) root.requestFullscreen?.().catch(() => {});
+    else document.exitFullscreen?.();
+  }
+  function onKey(e) {
+    if (e.defaultPrevented || e.isComposing || e.keyCode === 229) return;  // IME composition
+    if (e.ctrlKey || e.metaKey || e.altKey) return;                        // browser shortcuts
+    const t = e.target;
+    if (t.closest?.(EDITABLE)) return;
+    if ((e.key === ' ' || e.key === 'Enter') && t.closest?.('button, a, summary')) return;
+    let action = null, nav = true;
+    switch (e.key) {
+      case 'ArrowRight': case 'ArrowDown': case 'PageDown': action = next; break;
+      case 'ArrowLeft':  case 'ArrowUp':   case 'PageUp':   action = prev; break;
+      case ' ':    action = e.shiftKey ? prev : next; break;
+      case 'Home': action = () => { stopAutoplay(); show(0, 0); }; break;
+      case 'End':  action = () => { stopAutoplay(); show(n - 1, Infinity); }; break;
+      case '.':    action = () => root.classList.toggle('is-black'); nav = false; break;
+      default:
+        if (e.code === 'KeyN') action = next;                              // physical key: works in Korean IME state
+        else if (e.code === 'KeyP') action = prev;
+        else if (e.code === 'KeyB') { action = () => root.classList.toggle('is-black'); nav = false; }
+        else if (e.code === 'KeyF') { action = toggleFullscreen; nav = false; }
+    }
+    if (!action) return;                                                    // unhandled key: keep default
+    e.preventDefault();                                                     // stop page scroll even on repeat
+    if (e.repeat && !O.allowRepeat) return;
+    if (nav) root.classList.remove('is-black');
+    action();
+  }
+
+  // ---------- 원칙 7: swipe (touch only) ----------
+  let start = null;
+  function onDown(e) {
+    if (e.pointerType !== 'touch') return;
+    if (start) { start = null; return; }                                   // second finger: cancel
+    if (e.target.closest('[data-prevent-swipe], video[controls], audio[controls]')) return;
+    start = { id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp };
+  }
+  function onUp(e) {
+    if (!start || e.pointerId !== start.id) return;
+    const dx = e.clientX - start.x, dy = e.clientY - start.y, dt = e.timeStamp - start.t;
+    start = null;
+    if (Math.abs(dx) < Math.max(O.swipeMin, stage.clientWidth * 0.08) || Math.abs(dx) < Math.abs(dy) * 1.2 || dt > 600) return;
+    dx < 0 ? next() : prev();
+  }
+
+  // ---------- 원칙 6: autoplay <section data-autoplay="900"> ----------
+  function startAutoplay(slide) {
+    stopAutoplay();
+    const ms = parseInt(slide.dataset.autoplay, 10);
+    if (!ms) return;
+    if (reduce.matches) { step = applyStep(slide, Infinity); writeHash(false); updateLive(); return; }
+    const tick = () => {
+      if (slides[cur] === slide && step < slide._groups.length) { show(cur, step + 1); autoTimer = setTimeout(tick, ms); }
+    };
+    autoTimer = setTimeout(tick, ms);
+  }
+  function stopAutoplay() { clearTimeout(autoTimer); autoTimer = null; }
+
+  function updateLive() {}
+
+  // ---------- bind ----------
+  document.addEventListener('keydown', onKey);
+  addEventListener('hashchange', onUrl);
+  addEventListener('popstate', onUrl);
+  stage.addEventListener('pointerdown', onDown, { passive: true });
+  stage.addEventListener('pointerup', onUp, { passive: true });
+  stage.addEventListener('pointercancel', () => { start = null; }, { passive: true });
+  document.querySelector('.controls').addEventListener('click', e => {
+    const a = e.target.closest('[data-action]')?.dataset.action;
+    if (a === 'next') next();
+    else if (a === 'prev') prev();
+    else if (a === 'full') toggleFullscreen();
+  });
+
+  // ---------- 원칙 10: print = every slide, every step ----------
+  addEventListener('beforeprint', () => {
+    if (active) active.done();
+    slides.forEach(s => { s.inert = false; applyStep(s, Infinity); });
+  });
+  addEventListener('afterprint', () => {
+    slides.forEach((s, i) => { s.inert = i !== cur; applyStep(s, i === cur ? step : 0); });
+  });
+
+  onUrl();
+  writeHash(false);                                                         // normalize URL without adding history
+})();
+</script>
+</body>
+</html>

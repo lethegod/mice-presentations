@@ -21,6 +21,6 @@
 
 | 날짜 | 발표 | 링크 |
 |---|---|---|
-| 2026-11-17 | 진료 한 장 — 수정안 (v4) | [열기](https://lethegod.github.io/mice-presentations/%EB%B0%9C%ED%91%9C%EC%9E%90%EB%A3%8C_%ED%95%B4%EC%BB%A4%ED%86%A4/20261117_%EC%A7%84%EB%A3%8C%ED%95%9C%EC%9E%A5%EC%88%98%EC%A0%95%EC%95%88_v4.html) |
+| 2026-11-17 | 진료 한 장 — 발표자료 (v5) | [열기](https://lethegod.github.io/mice-presentations/%EB%B0%9C%ED%91%9C%EC%9E%90%EB%A3%8C_%ED%95%B4%EC%BB%A4%ED%86%A4/20261117_%EC%A7%84%EB%A3%8C%ED%95%9C%EC%9E%A5%EB%B0%9C%ED%91%9C_v5.html) |
 
 조작: → / Space 다음 · ← 이전 · F 전체화면 · 휴대폰은 좌우로 밀기
