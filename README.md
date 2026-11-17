@@ -16,10 +16,11 @@
 | 2026-11-09 | 내 폰 속 투자 AI가 말을 안 들음 — 개인 발표 (v10) | [열기](https://lethegod.github.io/mice-presentations/%EB%B0%9C%ED%91%9C%EC%9E%90%EB%A3%8C_%EA%B5%90%EC%96%91/20261109_%ED%88%AC%EC%9E%90AI%EC%9B%B9%EC%86%8C%EC%84%A4_%EB%B0%9C%ED%91%9C_v10.html) |
 | 2026-11-05 | 내 폰 속 투자 AI가 말을 안 들음 — 웹소설 기획서 (v1) | [열기](https://lethegod.github.io/mice-presentations/%EB%B0%9C%ED%91%9C%EC%9E%90%EB%A3%8C_%EA%B5%90%EC%96%91/20261105_%ED%88%AC%EC%9E%90AI%EC%9B%B9%EC%86%8C%EC%84%A4%EA%B8%B0%ED%9A%8D%EC%84%9C_v1.html) |
 
-조작: → / Space 다음 · ← 이전 · F 전체화면 · 휴대폰은 좌우로 밀기
 
 ## 발표자료_해커톤
 
 | 날짜 | 발표 | 링크 |
 |---|---|---|
 | 2026-11-17 | 진료 한 장 — 수정안 (v4) | [열기](https://lethegod.github.io/mice-presentations/%EB%B0%9C%ED%91%9C%EC%9E%90%EB%A3%8C_%ED%95%B4%EC%BB%A4%ED%86%A4/20261117_%EC%A7%84%EB%A3%8C%ED%95%9C%EC%9E%A5%EC%88%98%EC%A0%95%EC%95%88_v4.html) |
+
+조작: → / Space 다음 · ← 이전 · F 전체화면 · 휴대폰은 좌우로 밀기
