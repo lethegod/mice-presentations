@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>화천 간동 프로그램 재설계안 v1</title>
+<style>
+  @page { size: A4; margin: 13mm; }
+  :root { --main:#00735a; --soft:#e6f0ec; --line:#d9e3df; --ink:#1e2522; --sub:#57635d; --note:#fff2c0; --or:#b5530f; --orsoft:#fbeee3; --warn:#8a5300; --bad:#a8342a; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:"Apple SD Gothic Neo","Noto Sans KR",sans-serif; color:var(--ink); font-size:9.1pt; line-height:1.5; background:#fff; word-break:keep-all; }
+  .top { display:flex; justify-content:space-between; font-size:8.2pt; color:var(--sub); border-bottom:1px solid var(--line); padding-bottom:4px; }
+  h1 { color:var(--main); font-size:22pt; margin:10px 0 2px; line-height:1.25; }
+  .lead { font-size:10.8pt; font-weight:700; margin:0 0 8px; }
+  h2 { font-size:12.5pt; margin:14px 0 6px; padding-bottom:5px; border-bottom:2px solid var(--main); break-after:avoid; }
+  h2 .n { color:var(--main); margin-right:6px; }
+  p { margin:4px 0; }
+  ul, ol { margin:3px 0; padding-left:18px; } li { margin:1px 0; }
+  table { width:100%; border-collapse:collapse; margin:5px 0 7px; font-size:8.5pt; }
+  th, td { border:1px solid var(--line); padding:3.5px 5px; vertical-align:top; text-align:left; }
+  th { background:var(--soft); font-weight:700; }
+  tr { break-inside:avoid; }
+  td.k { background:#f5f9f7; font-weight:700; }
+  td.t { white-space:nowrap; font-variant-numeric:tabular-nums; }
+  td.c { text-align:center; font-weight:700; white-space:nowrap; }
+  tr.mv td { background:#fafafa; color:var(--sub); font-size:8pt; }
+  .box { background:var(--soft); border-radius:8px; padding:8px 12px; margin:6px 0; break-inside:avoid; }
+  .obox { background:var(--orsoft); border-radius:8px; padding:8px 12px; margin:6px 0; break-inside:avoid; }
+  .tba { display:inline-block; background:var(--note); color:var(--warn); font-weight:700; font-size:7.6pt; border-radius:4px; padding:0 4px; }
+  .web { display:inline-block; background:#e7e7f3; color:#3f3f8a; font-weight:700; font-size:7.4pt; border-radius:4px; padding:0 4px; }
+  .ok { color:var(--main); } .mid { color:var(--warn); } .no { color:var(--bad); }
+  .small { font-size:8pt; color:var(--sub); }
+  .src { font-size:7.8pt; } .src li { word-break:break-all; }
+  .pb { break-before:page; }
+</style>
+</head>
+<body>
+
+<div class="top"><span>로컬콘텐츠 개발 · C조 · 화천 간동 교원 회복 워크숍</span><span>2026-11-18 · 프로그램 재설계안 v1</span></div>
+
+<h1>화천 간동 1박 2일 재설계안</h1>
+<p class="lead">교원 힐링과 이어지는지, 간동에서만 할 수 있는지 두 기준으로 모든 프로그램을 다시 검토했다. 적는 일은 명찰 뒷면 하나로 줄이고, 의견은 차량 이동 중 웹 설문으로 받는다.</p>
+
+<div class="box"><b>결론</b>
+<ul>
+  <li><b>빼는 것</b>: 안보전시관 글쓰기(교사에게 또 하나의 과제이고 전쟁 전시가 무겁다 → 전망대 조망 20분만 남김), 처방전 작성, 저녁 공식 대화 프로그램.</li>
+  <li><b>고유성 보완의 축은 올데이간동</b>: 수확·들기름·음료·화분이 따로 노는 체험이 아니라 <b>한 동네 상인들이 서로 맞물려 이틀을 함께 차리는 구조</b>로 엮는다. 오월농원 수확물과 너래안 들기름이 그날 점심상에 오르고, 저녁은 올데이간동 대표들과 같은 식탁에서 먹는다.</li>
+  <li><b>교원 연결 보완</b>: 들기름 체험의 중심을 "<b>돌보러 내려왔다가 스스로 회복한 사람</b>"(송주희 대표) 이야기로 옮긴다. 교사들끼리만 이야기하는 선택 시간(상담사 동석)을 다시 넣는다.</li>
+  <li><b>기록</b>: 종이는 명찰 하나(뒷면에 이틀 일정과 진단 문장, 손으로 쓰는 칸은 한 줄). 의견·만족도·여유 점수는 명찰 앞면 QR 하나로 받는 웹 설문으로, 차량 이동 구간에 1분씩, 귀가 버스에서 5분.</li>
+</ul>
+</div>
+
+<h2><span class="n">01</span>프로그램 재검토</h2>
+<p class="small">기준 ① <b>교원 힐링 연결</b>: 교사의 스트레스(민원·교육활동 보호 부족·소진, v1 지표)와 회복에 직접 닿는가. 기준 ② <b>간동 오리지널리티</b>: 춘천·홍천에서 똑같이 할 수 있는가. ○ 강함 · △ 보통 · × 약함. 평가는 팀 검토용 판단이다.</p>
+<table>
+  <tr><th style="width:15%">프로그램</th><th style="width:6%">①</th><th style="width:6%">②</th><th style="width:31%">문제</th><th>보완</th></tr>
+  <tr><td class="k">사전 진단 · 명찰</td><td class="c ok">○</td><td class="c">-</td><td>도구일 뿐이라 고유성은 따지지 않는다</td><td>유지. 진단 결과는 점수 없이 문장 하나로 명찰 뒷면에</td></tr>
+  <tr><td class="k">들기름 체험 (너래안)</td><td class="c mid">△</td><td class="c mid">△</td><td>깨 볶기·시식은 어느 방앗간에서나 할 수 있는 관광 체험에 가깝다(11.4 피드백: 관광 프로그램과 MICE 구분)</td><td>송주희 대표는 다친 어머니를 간병하러 화천에 내려왔고, 서울에서 아프던 몸이 고향에서 나았다고 말했다[1]. <b>"남을 돌보러 왔다가 자신이 회복한 사람"</b>은 교사와 같은 처지라 연결이 직접적이다. 체험은 15분으로 줄이고, 20명 소그룹 질문 대화를 20분으로 늘린다 → ①○ ②○</td></tr>
+  <tr><td class="k">파로호 유람선</td><td class="c ok">○</td><td class="c mid">△</td><td>업무와 물리적으로 떨어지는 힘은 크다. 하지만 호수 유람선은 춘천·양구에도 있다</td><td>파로호~평화의댐 노선과, 이용객이 적은 군 선박을 연수로 살린다는 점이 고유하다(재설계 근거로 유지). 출항 후 30분 침묵은 그대로</td></tr>
+  <tr><td class="k">안보전시관 글쓰기</td><td class="c no">×</td><td class="c mid">△</td><td>지친 교사에게 45분 글쓰기는 과제다. "적기 최소화" 방향과 충돌하고, 전쟁 전시는 회복 공간으로 무겁다</td><td><b>글쓰기 삭제</b>. 유람선에서 내린 뒤 전망대에서 방금 지나온 파로호를 20분 말없이 내려다보는 시간만 남긴다(전시 관람은 선택)</td></tr>
+  <tr><td class="k">저녁 "간동 사람들과의 대화"</td><td class="c mid">△</td><td class="c ok">○</td><td>저녁의 공식 프로그램은 피곤하고, 내향적인 참가자에게 부담이다</td><td>프로그램을 없애고 <b>올데이간동 대표들과 같은 식탁에서 먹는 저녁</b>으로 바꾼다. 말하고 싶은 사람만 말한다</td></tr>
+  <tr><td class="k">오월농원 수확</td><td class="c ok">○</td><td class="c no">×</td><td>치유농업 효과 보고는 있지만[2], 수확 체험 자체는 어디서나 한다</td><td>오전에 거둔 작물이 <b>그날 점심상에 오르게</b> 한다(오월농원 → 식당, 너래안 들기름과 함께). 간동 안에서 기르고 먹는 한 끼가 고유성이다. 식당 협의 <span class="tba">TBA</span></td></tr>
+  <tr><td class="k">짜맞춤 목공 (한옥학교)</td><td class="c ok">○</td><td class="c ok">○</td><td>75분 완성 난이도·단가 미확인</td><td>유지. "못 없이 서로 짜맞춰 버틴다"는 서사가 교사의 고립과 이어진다. 결과물은 <b>명찰을 꽂아 두는 거치대</b>로 바꾼다</td></tr>
+  <tr><td class="k">화분 심기 (식물의정석)</td><td class="c ok">○</td><td class="c no">×</td><td>원예 활동 효과 보고는 있지만[2], 화분 심기는 어디서나 한다</td><td>"<b>간동에서 기른 식물</b>"만 쓰는 원칙을 식물의정석에 제안한다. 가능한 품종은 <span class="tba">TBA</span></td></tr>
+  <tr><td class="k">빠진 것: 교사끼리의 시간</td><td class="c no">×</td><td class="c">-</td><td>지금 일정에는 교사의 스트레스(민원·교권)를 직접 다루는 순서가 없다. v1의 "동료와 이야기"가 빠졌다</td><td><b>선생님끼리 40분(선택)</b>: 상담사가 동석하는 소그룹 이야기. 동두천양주 I&amp;YOU도 동료 간 대화를 넣었다(팀 사례 캡처). 고유성은 필요 없는 순서다</td></tr>
+</table>
+<div class="obox"><b>정리</b>: 개별 체험(수확·화분·시식)은 어디서나 할 수 있다. 간동에서만 가능한 것은 <b>그 체험을 하는 사람들</b>(돌봄 끝에 회복한 귀농 청년, 군립 한옥학교 목수)과 <b>그 사람들이 상인 연합으로 서로 맞물려 움직인다는 사실</b>이다. 그래서 프로그램 수를 늘리는 대신, 이틀 동선 안에서 올데이간동 회원사의 것이 서로 이어지게(수확물 → 점심상, 들기름 → 점심상, 함께 먹는 저녁, 공동 기념품) 짠다.</div>
+
+<h2><span class="n">02</span>이전 안과 달라진 점</h2>
+<table>
+  <tr><th style="width:20%">항목</th><th style="width:36%">이전</th><th>이번</th></tr>
+  <tr><td class="k">기록</td><td>명찰 메모 4줄 + 수료 때 처방전 작성 30분</td><td>명찰 뒷면 손글씨 1줄(선택). 나머지는 웹 설문</td></tr>
+  <tr><td class="k">설문</td><td>수료 때 종이 사후 설문</td><td>명찰 QR → 웹 설문. 이동 구간마다 1분, 귀가 버스에서 5분</td></tr>
+  <tr><td class="k">안보전시관</td><td>회복 글쓰기 75분</td><td>전망대 조망 20분</td></tr>
+  <tr><td class="k">들기름</td><td>체험 중심 40분</td><td>송주희 대표와의 대화 중심 40분</td></tr>
+  <tr><td class="k">저녁</td><td>간동 사람들과의 대화(프로그램)</td><td>선생님끼리 40분(선택) + 올데이간동 대표들과 함께 먹는 저녁</td></tr>
+  <tr><td class="k">점심</td><td>식당 <span class="tba">TBA</span></td><td>식당 <span class="tba">TBA</span> + 오월농원 수확물·너래안 들기름 사용 협의</td></tr>
+  <tr><td class="k">목공 결과물</td><td>처방전 거치대</td><td>명찰 거치대(명찰이 집까지 간다)</td></tr>
+</table>
+
+<h2><span class="n">03</span>장소와 사람</h2>
+<table>
+  <tr><th style="width:18%">장소</th><th style="width:27%">주소 · 운영</th><th style="width:17%">사람</th><th>확인할 것</th></tr>
+  <tr><td class="k">간동종합문화센터</td><td>간척월명로 293</td><td>운영팀</td><td>40명 수용, 냉방, 대관</td></tr>
+  <tr><td class="k">너래안 <span class="small">(올데이간동)</span></td><td>간척월명로 281-13 · 월~금 09:30~17:00, 12시 휴게</td><td>송주희 대표</td><td>귀농·간병 이야기 공개 동의, 20명 수용, 1병 단가</td></tr>
+  <tr><td class="k">무래이</td><td>간척월명로 305-1 · 월~금 09:00~18:00</td><td>-</td><td>20명 좌석</td></tr>
+  <tr><td class="k">파로호유원지선착장</td><td>구만리 1173 · 033-440-2743</td><td>-</td><td>선박·단체 탑승, 귀항 시각, 객실 냉방</td></tr>
+  <tr><td class="k">파로호 안보전시관</td><td>파로호로 208 · 09:00~18:00, 월요일 휴관</td><td>-</td><td>전망대 40명 이용</td></tr>
+  <tr><td class="k">오월농원 <span class="small">(올데이간동)</span></td><td>동림길 175-76</td><td>대표 <span class="tba">TBA</span></td><td>20명, 대형차 진입, 수확물 점심 전달</td></tr>
+  <tr><td class="k">화천한옥학교</td><td>모현동로 182-35 · 033-442-3366</td><td>목수 강사 <span class="tba">TBA</span></td><td>사전 가공 키트, 명찰 거치대 크기(A6), 단가</td></tr>
+  <tr><td class="k">식물의정석 <span class="small">(올데이간동)</span></td><td>유촌리 1043-4 · 매일 10:00~17:00</td><td>대표 <span class="tba">TBA</span></td><td>간동에서 기른 식물 여부, 40명 수용, 단가</td></tr>
+</table>
+
+<h2 class="pb"><span class="n">04</span>1일 차</h2>
+<table>
+  <tr><th style="width:12%">시간</th><th style="width:25%">프로그램</th><th style="width:19%">장소</th><th>운영</th></tr>
+  <tr class="mv"><td class="t">09:00–09:40</td><td>이동</td><td>집결지 <span class="tba">TBA</span> → 문화센터</td><td>교육청 기준 지도 26분</td></tr>
+  <tr><td class="t">09:40–10:20</td><td>도착 · 여는 시간</td><td>간동종합문화센터</td><td>명찰 받기(뒷면에 진단 문장과 이틀 일정), 업무폰 보관함, 참여 원칙(발언 자율), 결과물 보관 안내</td></tr>
+  <tr class="mv"><td class="t">10:20–10:30</td><td>도보 이동</td><td>A조 → 너래안 · B조 → 무래이</td><td>지도 도보 5분 / 2분</td></tr>
+  <tr><td class="t">10:30–11:10</td><td>들기름 체험 (A조)</td><td>너래안 / 무래이</td><td>A조: 송주희 대표 이야기와 질문 대화 20분 → 깨 볶기·맛보기 15분 → 내 병 받기 5분(병은 보관 상자로). B조: 무래이에서 쉼</td></tr>
+  <tr class="mv"><td class="t">11:10–11:20</td><td>조 교대</td><td>너래안 ↔ 무래이</td><td>도보</td></tr>
+  <tr><td class="t">11:20–12:00</td><td>들기름 체험 (B조)</td><td>너래안 / 무래이</td><td>너래안 휴게시간(12:00) 전 종료</td></tr>
+  <tr><td class="t">12:00–13:00</td><td>점심: 간동 한 끼</td><td>식당 <span class="tba">TBA</span></td><td>오월농원 작물·너래안 들기름 사용 협의 <span class="tba">TBA</span></td></tr>
+  <tr class="mv"><td class="t">13:05–13:25</td><td>이동 <span class="web">웹 1분</span></td><td>→ 파로호유원지선착장</td><td>들기름 체험 직후 여유 점수 + 한 줄 의견(선택)</td></tr>
+  <tr><td class="t">13:30–16:00</td><td>파로호 유람선</td><td>파로호 → 평화의댐 왕복</td><td>정기편 13:30 출발 기준. 출항 후 30분 침묵. 귀항 약 16:00 추정(<span class="tba">TBA</span>)</td></tr>
+  <tr class="mv"><td class="t">16:00–16:10</td><td>이동</td><td>선착장 → 안보전시관</td><td>지도 3분</td></tr>
+  <tr><td class="t">16:10–16:30</td><td>전망대 조망</td><td>파로호 안보전시관 전망대</td><td>방금 지나온 호수를 말없이 내려다보기. 전시 관람은 선택</td></tr>
+  <tr class="mv"><td class="t">16:30–</td><td>이동 <span class="web">웹 1분</span></td><td>→ 숙소 <span class="tba">TBA</span></td><td>유람선 직후 여유 점수. 이동 시간 <span class="tba">TBA</span></td></tr>
+  <tr><td class="t">~16:50–17:50</td><td>체크인·휴식</td><td>숙소 <span class="tba">TBA</span></td><td>샤워하며 진드기 확인</td></tr>
+  <tr><td class="t">17:50–18:30</td><td>선생님끼리 (선택)</td><td>숙소 공동 공간 <span class="tba">TBA</span></td><td>상담사 동석, 6~8명 소그룹. 민원·교권 이야기는 하고 싶은 사람만. 나눈 내용은 밖에 나가지 않음</td></tr>
+  <tr><td class="t">18:40–20:00</td><td>함께 먹는 저녁</td><td>식당 <span class="tba">TBA</span></td><td>올데이간동 대표들이 같은 식탁에 앉는다(참석 <span class="tba">TBA</span>). 프로그램 없이 식사만</td></tr>
+  <tr><td class="t">20:00–</td><td>자유시간</td><td>숙소</td><td>개별 물놀이 금지 안내</td></tr>
+</table>
+
+<h2><span class="n">05</span>2일 차</h2>
+<table>
+  <tr><th style="width:12%">시간</th><th style="width:44%">A조 (20명)</th><th>B조 (20명)</th></tr>
+  <tr><td class="t">07:30–08:20</td><td colspan="2">아침·체크아웃 · 숙소 <span class="tba">TBA</span></td></tr>
+  <tr class="mv"><td class="t">08:20–09:00</td><td>숙소 → 오월농원 (<span class="tba">TBA</span>, 문화센터 기준 15분)</td><td>숙소 → 화천한옥학교 (<span class="tba">TBA</span>, 문화센터 기준 15분)</td></tr>
+  <tr><td class="t">09:00–10:15<br>1부</td><td><b>오월농원 수확</b><br>청년농부와 수확. 거둔 작물 일부는 점심 식당으로</td><td><b>짜맞춤 목공</b><br>목수의 짜맞춤 설명 → 다듬기 → 옆 사람과 끼워 보기 → 마감. 결과물: 명찰 거치대</td></tr>
+  <tr class="mv"><td class="t">10:15–10:40</td><td colspan="2">조 교대 이동 (지도 13분) <span class="web">웹 1분</span> 1부 활동 직후 여유 점수</td></tr>
+  <tr><td class="t">10:40–11:55<br>2부</td><td><b>짜맞춤 목공</b></td><td><b>오월농원 수확</b> (12시 전 종료, 폭염 주의보 시 40분 단축)</td></tr>
+  <tr class="mv"><td class="t">11:55–12:15</td><td colspan="2">→ 점심 식당 (<span class="tba">TBA</span>)</td></tr>
+  <tr><td class="t">12:15–13:15</td><td colspan="2">점심: 오전에 거둔 작물이 오른 한 끼 · 식당 <span class="tba">TBA</span></td></tr>
+  <tr class="mv"><td class="t">13:15–13:35</td><td colspan="2">→ 식물의정석 (문화센터 기준 지도 9분) <span class="web">웹 1분</span> 2부 활동 직후 여유 점수</td></tr>
+  <tr><td class="t">13:35–14:25</td><td colspan="2"><b>화분 심기</b> (식물의정석): 대표의 식물 이야기 → 명찰에 적힌 유형의 식물 심기 → 돌봄 카드. 40명 수용이 안 되면 문화센터로 출장</td></tr>
+  <tr class="mv"><td class="t">14:25–14:45</td><td colspan="2">식물의정석 → 문화센터 (지도 9분)</td></tr>
+  <tr><td class="t">14:45–15:15</td><td colspan="2"><b>마무리</b> (문화센터): 보관 상자에서 결과물 돌려받기 → 명찰 뒷면 한 줄 "집에 가서 해 볼 것"(선택, 2분) → 올데이간동 기념품 → 상담 연락처 안내</td></tr>
+  <tr class="mv"><td class="t">15:20–16:00</td><td colspan="2">귀가 → 집결지 <span class="tba">TBA</span> <span class="web">웹 5분</span> 출발 직후 사후 설문 + 집에서 해 볼 것 한 줄 + D+30 문자 동의</td></tr>
+</table>
+
+<h2><span class="n">06</span>기록과 설문 방식</h2>
+<table>
+  <tr><th style="width:18%">무엇</th><th style="width:30%">방식</th><th>이유</th></tr>
+  <tr><td class="k">손으로 쓰는 것</td><td>명찰 뒷면 한 줄(선택)뿐</td><td>지친 교사에게 쓰기는 과제다. 명찰은 목에 걸려 있어 따로 챙길 종이가 없다</td></tr>
+  <tr><td class="k">명찰 뒷면 (인쇄)</td><td>진단 문장 1개, 이틀 일정·장소, 화분 유형, 비상 연락처</td><td>이틀 동안 필요한 정보를 한 장에. 진단은 안쪽이라 본인만 본다</td></tr>
+  <tr><td class="k">의견·여유 점수</td><td>명찰 앞면 QR 하나 → 웹 설문(구글·네이버 폼). 이동 구간 4회 × 1분</td><td>이동 시간을 쓰고, 활동 직후 여유 점수를 활동별로 비교할 수 있다(재구성안 지표 "활동별 여유 점수")</td></tr>
+  <tr><td class="k">사후 설문</td><td>귀가 버스 출발 직후 5분</td><td>수료 시간을 줄이고 쉬는 시간으로 돌린다. "집에 가서 해 볼 것" 한 줄을 여기서 받아 D+30 문자에 다시 보낸다</td></tr>
+  <tr><td class="k">D+30</td><td>문자 링크 → 웹 설문</td><td>휴가 효과는 복귀 후 1주 안에 휴가 전 수준으로 돌아간다는 분석이 있다[3]. 한 달 뒤 다시 꺼내 보게 한다</td></tr>
+</table>
+<div class="obox"><b>웹 설문의 주의점</b>: ① 움직이는 차 안에서 화면을 보면 멀미가 날 수 있다 → 1분 이내 문항만, 귀가 설문은 출발 전 정차 상태에서 시작. ② 휴대폰을 꺼내는 순간 업무 연락이 보일 수 있다 → 운영팀이 "지금 1분" 신호를 주고, 폼만 열고 닫도록 안내. ③ 간동면 산간 구간의 통신 상태는 <span class="tba">확인 필요</span> → 종이 예비 설문 10부. 별도 웹사이트 제작은 필요 없다. 폼 하나에 "지금 어느 구간인가요" 선택으로 문항을 나눈다. 화면은 와이어프레임 문서 참조.</div>
+
+<h2><span class="n">07</span>날씨·안전 대체안</h2>
+<table>
+  <tr><th style="width:22%">상황</th><th>대응</th></tr>
+  <tr><td class="k">유람선 결항</td><td>안보전시관 전망대 조망을 길게(40분) + 숙소 휴식 앞당김. 결항 기준 <span class="tba">TBA</span></td></tr>
+  <tr><td class="k">폭염 주의보·경보</td><td>오월농원 40분 이내 단축, 경보 시 제외하고 수확물 다듬기를 실내로(v1 기준)</td></tr>
+  <tr><td class="k">응급</td><td>119 → 화천군보건의료원(033-442-7115) → 춘천 권역응급의료센터(v1)</td></tr>
+  <tr><td class="k">정서</td><td>상담사 1명 이틀 동행, "선생님끼리" 시간은 선택, 조용한 방 1실(문화센터)</td></tr>
+</table>
+
+<h2><span class="n">08</span>TBA 목록</h2>
+<table>
+  <tr><th style="width:30%">TBA</th><th>확인할 것 · 확인처</th></tr>
+  <tr><td>집결지 · 숙소 · 식당 3곳</td><td>40명 단체, 위치·이동 시간, 오월농원 수확물·너래안 들기름 사용 가능 여부</td></tr>
+  <tr><td>유람선</td><td>선박, 단체 탑승, 귀항 시각, 객실 냉방 · 033-440-2575</td></tr>
+  <tr><td>너래안</td><td>송주희 대표의 귀농·간병 이야기를 연수에서 공개해도 되는지(본인 동의), 20명 수용</td></tr>
+  <tr><td>식물의정석</td><td>간동에서 기른 식물 가능 여부, 40명, 단가 · 0503-7150-2113</td></tr>
+  <tr><td>한옥학교</td><td>사전 가공 키트, A6 명찰 거치대, 단가 · 033-442-3366</td></tr>
+  <tr><td>올데이간동</td><td>저녁 식탁 참석, 공동 기념품, 단체 계약 창구</td></tr>
+  <tr><td>웹 설문</td><td>간동면 이동 구간 통신 상태, 개인정보 동의(연락처·D+30 문자)</td></tr>
+</table>
+
+<h2><span class="n">09</span>자료</h2>
+<ol class="src">
+  <li>[1] 서울신문(2016-11-02), [新전원일기] 강원 화천 '너래안' 송주희 대표 — https://m.seoul.co.kr/news/2016/11/02/20161102018005 · 더팩트(2025-06-30) — https://news.tf.co.kr/read/ptoday/2219253.htm</li>
+  <li>[2] 농진청 치유농업 실증 결과 보도(성인 식물재배 프로그램 우울감 23.52% 감소 등, 소규모 실증) — https://www.dailian.co.kr/news/view/1492184</li>
+  <li>[3] de Bloom et al.(2009) 휴가 효과 메타분석 — https://pubmed.ncbi.nlm.nih.gov/19096200/ · 2023 후속 메타분석(복귀 1주 후 차이 없음) — https://fis.tu-dresden.de/portal/en/publications/we-continue-to-recover-through-vacation-metaanalysis-of-vacation-effects-on-wellbeing-and-its-fadeout(afc00f0a-5761-4757-a23f-5b1e50b53604).html</li>
+  <li>카카오맵 장소 정보·길찾기(2026-11-18 조회) · 유람선 시간표 https://www.ktriptips.com/kor/tourspot/125801 · 안보전시관 https://www.ktriptips.com/kor/culture/229906</li>
+  <li>팀 자료: v1 기획안(11-05), 재구성안(11-11, 활동별 여유 점수 지표), 동두천양주 I&amp;YOU 캡처, 11.4 피드백 · 올데이간동: 팀 제공 정보</li>
+</ol>
+
+</body>
+</html>
